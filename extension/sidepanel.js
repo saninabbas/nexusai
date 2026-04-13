@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (data.license && data.license.active) {
         licenseActive = true;
-        els.licenseBadge.classList.remove('hidden');
+        els.licenseBadge.classList.add('visible');
     }
 
     // Load Bot Status
@@ -94,12 +94,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             els.btnStartBot.classList.add('hidden');
             els.btnStopBot.classList.remove('hidden');
             els.botStateText.innerText = 'Bot is Autonomous • Running';
-            els.botStateDot.className = 'w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_8px_rgba(68,223,163,0.6)]';
+            els.botStateDot.className = 'bot-state-dot running';
         } else {
             els.btnStopBot.classList.add('hidden');
             els.btnStartBot.classList.remove('hidden');
             els.botStateText.innerText = 'Bot is Stopped';
-            els.botStateDot.className = 'w-1.5 h-1.5 rounded-full bg-on-surface-variant';
+            els.botStateDot.className = 'bot-state-dot';
         }
     }
     updateBotUI(!!(data.botStatus && data.botStatus.running));
@@ -176,17 +176,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (res.ok && text.license && text.license.active) {
                 licenseActive = true;
-                els.licenseBadge.classList.remove('hidden');
+                els.licenseBadge.classList.add('visible');
                 els.licenseStatusTxt.innerText = "Subscription Active! (Expires: " + new Date(text.license.expiry).toLocaleDateString() + ")";
-                els.licenseStatusTxt.className = "text-[11px] font-semibold mt-3 text-center text-secondary";
+                els.licenseStatusTxt.className = "license-status-txt success";
                 await chrome.storage.local.set({ license: text.license, licenseKey: text.licenseKey });
             } else {
                 throw new Error("Invalid TxHash or Subscription.");
             }
         } catch (e) {
             els.licenseStatusTxt.innerText = "Verification Failed: " + e.message;
-            els.licenseStatusTxt.className = "text-[11px] font-semibold mt-3 text-center text-error";
-            els.licenseStatusTxt.classList.remove('hidden');
+            els.licenseStatusTxt.className = "license-status-txt error";
         }
         els.btnValidateLicense.innerText = "Verify Transaction";
     });
@@ -262,7 +261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             els.totalEqText.innerText = `$${parseFloat(response.account.totalMarginBalance).toFixed(2)}`;
             let upnl = parseFloat(response.account.totalUnrealizedProfit);
             els.upnlText.innerText = `${upnl >= 0 ? '+' : ''}$${upnl.toFixed(2)}`;
-            els.upnlText.className = upnl >= 0 ? "text-secondary text-[14px] font-bold" : "text-error text-[14px] font-bold";
+            els.upnlText.className = upnl >= 0 ? "upnl-value" : "upnl-value negative";
         }
 
         if (response.positions) {
@@ -278,19 +277,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const pnl = parseFloat(p.unRealizedProfit);
                     const colorGrp = isLong ? 'secondary' : 'error';
                     
+                    const sideClass = isLong ? 'long' : 'short';
+                    const pnlClass  = pnl >= 0 ? 'profit' : 'loss';
                     const row = document.createElement('div');
-                    row.className = `pos-row grid grid-cols-3 px-4 py-3 hover:bg-surface-bright transition-colors cursor-pointer`;
+                    row.className = 'pos-row';
                     row.innerHTML = `
-                        <div class="flex flex-col">
-                            <span class="text-on-surface text-[12px] font-bold">${p.symbol}</span>
-                            <span class="text-${colorGrp} text-[9px] font-bold">${isLong ? 'LONG':'SHORT'} ${p.leverage}x</span>
+                        <div style="display:flex;flex-direction:column">
+                            <span class="pos-symbol">${p.symbol}</span>
+                            <span class="pos-side-lev ${sideClass}">${isLong ? 'LONG' : 'SHORT'} ${p.leverage}x</span>
                         </div>
-                        <div class="flex items-center justify-end">
-                            <span class="text-on-surface text-[12px] font-medium">${Math.abs(size)}</span>
+                        <div style="display:flex;align-items:center;justify-content:flex-end">
+                            <span class="pos-size">${Math.abs(size)}</span>
                         </div>
-                        <div class="flex flex-col items-end">
-                            <span class="text-${colorGrp} text-[12px] font-black">${pnl >= 0 ? '+':''}$${pnl.toFixed(2)}</span>
-                            <span class="text-${colorGrp}/60 text-[9px] font-bold">Eq: ${(pnl/parseFloat(response.account.totalWalletBalance)*100).toFixed(2)}%</span>
+                        <div class="pos-pnl-col">
+                            <span class="pos-pnl ${pnlClass}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</span>
+                            <span class="pos-eq ${pnlClass}">Eq: ${(pnl/parseFloat(response.account.totalWalletBalance)*100).toFixed(2)}%</span>
                         </div>
                     `;
                     els.positionsTable.appendChild(row);

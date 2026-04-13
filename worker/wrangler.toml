@@ -10,4 +10,4 @@ compatibility_date = "2024-04-10"
 
 [[kv_namespaces]]
 binding = "NEXUS_SUBSCRIPTIONS"
-id = "YOUR_KV_NAMESPACE_ID_HERE"
+id = "0850a017a5a14b278586ec5aef7a8498"
