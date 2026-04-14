@@ -156,48 +156,50 @@ export default {
             const { symbol } = body;
 
             // TRIM keys — prevents leading/trailing space bugs
-            const newsKey = (env.NEWS_API_KEY || body.newsKey || '').trim();
+            const gnewsKey = (env.GNEWS_API_KEY || body.newsKey || '').trim();
             const groqKey = (env.GROQ_API_KEY || body.groqKey || '').trim();
 
             if (!groqKey) {
                 return new Response(JSON.stringify({ error: "Missing GROQ_API_KEY" }), { status: 400, headers: corsHeaders });
             }
 
-            // 1. Fetch Headlines
-            // NOTE: NewsAPI free plan blocks server-side (non-browser) requests with 426.
-            // We try NewsAPI first, then fall back to curated headlines so Groq still runs.
+            // 1. Fetch Real Headlines via GNews API
+            // GNews is free (100 req/day) and works from server-side — no restrictions like NewsAPI.
+            // Sign up at: https://gnews.io
             let headlines = "";
-            let newsSource = "fallback";
+            let newsSource = "curated_fallback";
 
-            if (newsKey) {
+            if (gnewsKey) {
                 try {
-                    const newsUrl = `https://newsapi.org/v2/everything?q=bitcoin+OR+crypto+OR+ethereum&sortBy=publishedAt&pageSize=10&language=en&apiKey=${newsKey}`;
-                    const newsRes = await fetch(newsUrl, { headers: { 'User-Agent': 'NexusAI-Worker/1.0' } });
-                    const newsData = await newsRes.json();
+                    const gnewsUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent('bitcoin OR crypto OR ethereum')}&lang=en&max=10&sortby=publishedAt&token=${gnewsKey}`;
+                    const gnewsRes = await fetch(gnewsUrl);
+                    const gnewsData = await gnewsRes.json();
 
-                    if (newsData.status === 'ok' && newsData.articles && newsData.articles.length > 0) {
-                        headlines = newsData.articles.map(a => `- ${a.title}: ${a.description || ''}`).join('\n');
-                        newsSource = "newsapi";
+                    if (gnewsData.articles && gnewsData.articles.length > 0) {
+                        headlines = gnewsData.articles
+                            .map(a => `- ${a.title}: ${a.description || ''}`)
+                            .join('\n');
+                        newsSource = "gnews";
                     } else {
-                        // Return exact NewsAPI error for debugging
-                        console.error("NewsAPI error:", JSON.stringify(newsData));
+                        console.error("GNews error:", JSON.stringify(gnewsData));
                     }
-                } catch (newsErr) {
-                    console.error("NewsAPI fetch threw:", newsErr.message);
+                } catch (gnewsErr) {
+                    console.error("GNews fetch threw:", gnewsErr.message);
                 }
             }
 
-            // Fallback: curated crypto headlines so Groq can still analyze
+            // Fallback: curated crypto context so Groq can still analyze even with no key
             if (!headlines) {
                 headlines = [
                     "- Bitcoin holds $60k support amid strong ETF inflows from institutional buyers",
                     "- Ethereum network upgrade boosts scalability, developer activity rises",
                     "- Crypto market uncertainty as macro data disappoints, BTC consolidates",
                     "- Whale wallets accumulating BTC at current levels per on-chain data",
-                    "- SEC regulatory clarity expected to boost institutional adoption of crypto assets"
+                    "- SEC regulatory clarity expected to boost institutional adoption of crypto"
                 ].join('\n');
                 newsSource = "curated_fallback";
             }
+
 
             // 2. Analyze with Groq (Qwen)
             const groqBody = {
