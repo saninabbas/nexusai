@@ -203,7 +203,7 @@ export default {
 
             // 2. Analyze with Groq (Qwen)
             const groqBody = {
-                model: "qwen-2.5-32b",
+                model: "qwen/qwen3-32b",
                 messages: [
                     {
                         role: "system",
@@ -211,12 +211,10 @@ export default {
                     },
                     {
                         role: "user",
-                        content: `Symbol: ${symbol}\n\nLatest News:\n${headlines}\n\nProvide your trading decision in JSON only.`
+                        content: `Symbol: ${symbol}\n\nLatest News:\n${headlines}\n\nProvide your trading decision ONLY as a valid JSON object. Do not include any other text.`
                     }
                 ],
-                temperature: 0.1,
-                max_tokens: 200,
-                response_format: { type: "json_object" }
+                temperature: 0.1
             };
 
             const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -234,10 +232,19 @@ export default {
             }
 
             const groqData = await groqRes.json();
-            const rawContent = groqData.choices?.[0]?.message?.content;
+            let rawContent = groqData.choices?.[0]?.message?.content;
             if (!rawContent) throw new Error("Groq returned empty response");
 
-            const result = JSON.parse(rawContent);
+            // Qwen3/Reasoning models often inject <think> blocks before output. Strip them.
+            rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/g, '');
+            // Strip markdown formatting if present
+            rawContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
+            
+            // Failsafe extraction in case text comes after JSON
+            const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error(`No JSON object found in response. Raw output: ${rawContent}`);
+            
+            const result = JSON.parse(jsonMatch[0]);
 
             return new Response(JSON.stringify({
                 decision: result.decision || 'NONE',
