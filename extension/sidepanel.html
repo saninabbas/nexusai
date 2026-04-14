@@ -390,21 +390,20 @@
           <div class="sub-card-header">
              <div class="plan-info">
                <span class="label-tiny">Monthly Plan</span>
-               <h3 class="price-val">0.05 BNB</h3>
+               <h3 class="price-val">30 USDT</h3>
              </div>
              <div class="plan-badge">PRO TRADER</div>
           </div>
           <div class="sub-body">
             <div class="qr-container">
-              <div id="qrPlaceholder" class="qr-mock">
-                 <span class="material-symbols-outlined">qr_code_2</span>
-              </div>
+              <!-- Dynamically generated QR Code for the USDT BEP20 address -->
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=0x9d35215728112c055c8d2472560d7e3ec58df135" class="qr-mock" style="width:100%; border-radius:8px;" alt="USDT BEP20 Address QR">
             </div>
             <div class="address-sect">
-               <span class="label-tiny">Deposit Address (BEP20)</span>
+               <span class="label-tiny">Deposit Address (USDT BEP20)</span>
                <div class="address-copy-row">
-                 <span class="addr-text">0x71C76...d8976F</span>
-                 <span class="material-symbols-outlined copy-icon">content_copy</span>
+                 <span class="addr-text">0x9d35215728112c055c8d2472560d7e3ec58df135</span>
+                 <span class="material-symbols-outlined copy-icon" id="btnCopyAddress">content_copy</span>
                </div>
             </div>
           </div>

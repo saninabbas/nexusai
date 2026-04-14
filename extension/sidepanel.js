@@ -498,6 +498,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => els.btnSaveNewsAi.innerText = "SAVE NEWS AI KEYS", 2000);
     });
 
+    // Copy USDT BEP20 Address
+    const btnCopyAddress = document.getElementById('btnCopyAddress');
+    if (btnCopyAddress) {
+        btnCopyAddress.addEventListener('click', () => {
+            navigator.clipboard.writeText('0x9d35215728112c055c8d2472560d7e3ec58df135');
+            btnCopyAddress.innerText = "check";
+            setTimeout(() => btnCopyAddress.innerText = "content_copy", 2000);
+        });
+    }
+
     // -------------------------------------------------------------------------
     // 10. Modals
     // -------------------------------------------------------------------------
