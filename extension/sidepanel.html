@@ -3,192 +3,437 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Nexus AI</title>
-  <link rel="stylesheet" href="sidepanel.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexus AI — Binance Futures AutoBot</title>
+  <link rel="stylesheet" href="sidepanel.css">
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
 </head>
 
-<body>
+<body class="no-scrollbar">
 
-  <!-- ═══════════════════ FIXED HEADER ═══════════════════ -->
+  <!-- Fixed Header -->
   <header class="header">
     <nav class="header-top">
-      <div class="logo">Nexus AI</div>
+      <div class="logo">Nexus AI Bot</div>
       <div class="header-actions">
-        <span id="licenseBadge" class="license-badge">Licensed</span>
-        <span class="material-symbols-outlined header-icon">account_circle</span>
+        <div id="licenseBadge" class="license-badge">PRO TRADER</div>
+        <span class="material-symbols-outlined header-icon" id="openSettingsIcon">account_circle</span>
       </div>
     </nav>
     <div class="tab-bar">
-      <button data-tab="dashboard" class="tab-btn active">Dashboard</button>
-      <button data-tab="controls" class="tab-btn">Controls</button>
-      <button data-tab="chat" class="tab-btn">Chat</button>
-      <button data-tab="settings" class="tab-btn">Settings</button>
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="controls">Controls</button>
+      <button class="tab-btn" data-tab="chat">Chat</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
     </div>
   </header>
 
-  <!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
-  <main>
+  <!-- Main Content Canvas -->
+  <main id="mainContainer">
 
-    <!-- ─── DASHBOARD TAB ─── -->
+    <!-- TAB: DASHBOARD -->
     <div id="tab-dashboard" class="tab-content active">
-
-      <!-- Equity Summary -->
+      <!-- Account Equity Section -->
       <section class="equity-section">
         <div class="equity-label-row">
-          <span class="label-xs">Total Equity (USDT)</span>
+          <span class="label-xs">TOTAL EQUITY (USDT)</span>
           <div class="bot-state-pill">
-            <span id="botStateDot" class="bot-state-dot"></span>
+            <div id="botStateDot" class="bot-state-dot"></div>
             <span id="botStateText" class="bot-state-label">Bot is Stopped</span>
           </div>
         </div>
         <div class="equity-values">
           <span id="totalEqText" class="equity-amount">$0.00</span>
-          <span id="upnlText" class="upnl-value">+$0.00</span>
+          <span id="upnlText" class="upnl-value">+0.0%</span>
         </div>
       </section>
 
-      <!-- Open Positions -->
+      <!-- Active Trade Card -->
+      <section id="activeTradeCard" class="active-trade-card hidden">
+        <div class="card-accent"></div>
+        <div class="card-header">
+          <div class="symbol-group">
+            <div class="symbol-main">
+              <span id="activeSymbol" class="symbol-name">BTCUSDT</span>
+              <span class="badge-xs">Perp</span>
+              <span id="activeLev" class="badge-xs accent">20x</span>
+            </div>
+            <span id="activeSide" class="side-label uppercase">LONG</span>
+          </div>
+          <div class="roe-group">
+            <span class="label-tiny">ROE</span>
+            <span id="activeROE" class="roe-value">+0.00%</span>
+          </div>
+        </div>
+        <div class="card-stats">
+          <div class="stat-box">
+            <p class="label-tiny">Size (BTC)</p>
+            <p id="activeSize" class="stat-value">0.000</p>
+          </div>
+          <div class="stat-box text-right">
+            <p class="label-tiny">PNL (USDT)</p>
+            <p id="activePNL" class="stat-value secondary">+$0.00</p>
+          </div>
+          <div class="stat-box">
+            <p class="label-tiny">Entry Price</p>
+            <p id="activeEntry" class="stat-value">0.00</p>
+          </div>
+          <div class="stat-box text-right">
+            <p class="label-tiny">Mark Price</p>
+            <p id="activeMark" class="stat-value">0.00</p>
+          </div>
+        </div>
+        <!-- Simple Bar Graph -->
+        <div class="mini-chart" id="sparkline">
+          <div class="bar" style="height: 30%"></div>
+          <div class="bar" style="height: 40%"></div>
+          <div class="bar" style="height: 35%"></div>
+          <div class="bar" style="height: 55%"></div>
+          <div class="bar" style="height: 45%"></div>
+          <div class="bar" style="height: 65%"></div>
+          <div class="bar" style="height: 80%"></div>
+          <div class="bar" style="height: 70%"></div>
+          <div class="bar" style="height: 90%"></div>
+          <div class="bar active" style="height: 100%"></div>
+          <div class="bar" style="height: 85%"></div>
+          <div class="bar" style="height: 75%"></div>
+        </div>
+      </section>
+
+      <!-- Open Positions Table -->
       <section class="positions-section">
         <div class="section-header">
           <h3 class="section-title">Open Positions</h3>
-          <button class="refresh-btn" id="refreshBtn">Refresh Data</button>
+          <span class="refresh-btn" id="refreshBtn">Refresh</span>
         </div>
         <div class="positions-table" id="positionsTable">
           <div class="table-header">
             <span>Symbol</span>
-            <span style="text-align:right">Size / Lev</span>
-            <span style="text-align:right">Unrealized PNL</span>
+            <span>Size</span>
+            <span class="text-right">PNL</span>
           </div>
-          <div class="no-positions-msg" id="noPositionsMsg">No open positions</div>
+          <div id="noPositionsMsg" class="no-positions-msg">
+            No active positions found.
+          </div>
+          <!-- Rows injected via JS -->
         </div>
       </section>
 
-    </div><!-- /tab-dashboard -->
+      <!-- Quick Actions Bento -->
+      <section class="bento-grid">
+        <div class="bento-item" id="btnMarketOrder">
+          <span class="material-symbols-outlined icon-gold">bolt</span>
+          <div class="bento-text">
+            <p class="bento-title">Market Order</p>
+            <p class="bento-sub">Instant execution.</p>
+          </div>
+        </div>
+        <div class="bento-item" id="btnSmartExit">
+          <span class="material-symbols-outlined icon-green">auto_awesome</span>
+          <div class="bento-text">
+            <p class="bento-title">Smart Exit</p>
+            <p class="bento-sub">Trailing optimizer.</p>
+          </div>
+        </div>
+      </section>
+    </div>
 
-    <!-- ─── CONTROLS TAB ─── -->
+    <!-- TAB: CONTROLS -->
     <div id="tab-controls" class="tab-content">
-      <section class="controls-section">
-
-        <!-- Autonomous Trading -->
-        <div class="card">
-          <h3 class="card-title">Autonomous Trading</h3>
-          <p class="card-subtitle">
-            Let the Nexus AI engine control entries and exits based on your
-            configured strategy signals (EMA / RSI crossover).
-          </p>
-          <button id="btnStartBot" class="btn-primary">START ENGINE</button>
-          <button id="btnStopBot" class="btn-secondary hidden">STOP ENGINE</button>
-        </div>
-
-        <!-- Kill Session -->
-        <div class="card card-danger">
-          <h3 class="card-title sm">Kill Session</h3>
-          <p class="card-subtitle">
-            Panic button. Immediately market closes all open positions and cancels all open orders.
-          </p>
-          <button id="btnKillSession" class="btn-danger">FORCED CLOSE EVERYTHING</button>
-        </div>
-
-        <!-- Risk Settings -->
-        <div class="card">
-          <h3 class="card-title sm" style="margin-bottom:16px">Risk Settings</h3>
-
-          <label class="form-label">Default Leverage</label>
-          <div class="range-row">
-            <input type="range" id="leverageRange" min="1" max="125" value="20">
-            <span id="leverageVal" class="range-value">20x</span>
+      <section class="controls-container">
+        <!-- Status Bar -->
+        <div class="runtime-status">
+          <div class="status-left">
+            <div id="statusDot" class="pulse-dot"></div>
+            <span class="status-label">ACTIVE</span>
           </div>
-
-          <label class="form-label">Position Size (Risk % of Equity)</label>
-          <div class="range-row">
-            <input type="range" id="riskRange" min="1" max="100" value="5" />
-            <span id="riskVal" class="range-value secondary">5%</span>
-          </div>
-
-          <button id="btnSaveRisk" class="btn-ghost">Save Settings</button>
-        </div>
-
-      </section>
-    </div><!-- /tab-controls -->
-
-    <!-- ─── CHAT TAB ─── -->
-    <div id="tab-chat" class="tab-content">
-      <div id="chatLog" class="chat-log no-scrollbar">
-        <!-- Initial bot message -->
-        <div class="chat-msg-bot">
-          <span class="chat-sender">Nexus AI</span>
-          <div class="chat-bubble-bot">
-            Hello! I am Nexus. Ask me to explain your positions or analyze
-            the market using Gemini Flash.
+          <div class="status-right">
+            <span class="label-tiny">Bot Runtime</span>
+            <span id="runtimeTimer" class="font-mono">Running for 0h 0m</span>
           </div>
         </div>
-      </div>
 
-      <!-- Chat Input Bar -->
-      <div class="chat-input-bar">
-        <div class="chat-input-inner">
-          <input type="text" id="chatInput" placeholder="Ask Nexus..." />
-          <button id="btnSendChat" class="btn-send">
-            <span class="material-symbols-outlined">send</span>
+        <!-- Master Actions -->
+        <div class="master-actions">
+          <button id="btnStartBot" class="btn-start">
+            <span class="material-symbols-outlined">play_arrow</span>
+            START AUTONOMOUS BOT
           </button>
-        </div>
-      </div>
-    </div><!-- /tab-chat -->
-
-    <!-- ─── SETTINGS TAB ─── -->
-    <div id="tab-settings" class="tab-content">
-      <section class="settings-section">
-
-        <!-- License -->
-        <div class="card">
-          <h3 class="card-title sm">License Validation</h3>
-          <p class="card-subtitle" style="margin-bottom:16px;font-size:11px">
-            Validate your subscription by entering your BscScan payment transaction hash.<br />
-            Use Master Key to bypass during internal testing.
-          </p>
-          <input type="text" id="txHashInput" class="input-field" placeholder="TxHash or License Key" />
-          <button id="btnValidateLicense" class="btn-ghost" style="margin-top:0">
-            Verify Transaction
-          </button>
-          <p id="licenseStatusTxt" class="license-status-txt"></p>
+          <div class="action-row">
+            <button id="btnStopBot" class="btn-stop">
+              <span class="material-symbols-outlined">stop</span>
+              STOP
+            </button>
+            <button id="btnKillSession" class="btn-kill">
+              <span class="material-symbols-outlined">dangerous</span>
+              KILL SESSION
+            </button>
+          </div>
         </div>
 
-        <!-- API Keys -->
-        <div class="card">
-          <div class="toggle-row">
-            <h3 class="card-title sm" style="margin-bottom:0">Binance Futures API</h3>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="toggle-label">TESTNET</span>
-              <input type="checkbox" id="testnetToggle" />
+        <!-- Strategy Selector (NEW) -->
+        <div class="p-card mb-4">
+          <div class="p-header">
+            <h2 class="p-title">Strategy Engine</h2>
+            <span class="material-symbols-outlined icon-sm">psychology</span>
+          </div>
+          <div class="setting-item">
+            <label class="label-tiny mb-2 block">Active Strategy / Mode</label>
+            <select id="strategySelector" class="p-select">
+              <option value="auto_rotate" selected>Auto Rotate (Default)</option>
+              <option value="news_ai">🧠 News AI Analysis (Groq Qwen)</option>
+              <option value="ema_sentiment">Strategy 1: EMA Crossover + Sentiment</option>
+              <option value="rsi_volume">Strategy 2: RSI Divergence + Volume Spike</option>
+              <option value="breakout_news">Strategy 3: Breakout + News Catalyst</option>
+              <option value="mean_reversion">Strategy 4: Mean Reversion</option>
+              <option value="scalp_momentum">Strategy 5: Scalping Momentum</option>
+              <option value="deep_ai">Strategy 6: Deep AI Market Analysis</option>
+            </select>
+            <p class="label-tiny opacity-50 mt-2">Auto Rotate cycles every 5 mins. News AI checks every 30 mins.</p>
+          </div>
+        </div>
+
+        <!-- Parameters Card -->
+        <div class="p-card">
+          <div class="p-header">
+            <h2 class="p-title">Quick Settings</h2>
+            <span class="material-symbols-outlined icon-sm">info</span>
+          </div>
+
+          <!-- Leverage Slider -->
+          <div class="setting-item">
+            <div class="setting-label-row">
+              <div class="setting-info">
+                <span class="label-tiny">Leverage Multiplier</span>
+                <span id="leverageVal" class="setting-val">20.0x</span>
+              </div>
+              <div class="stepper">
+                <button id="levDown" class="step-btn">-</button>
+                <button id="levUp" class="step-btn">+</button>
+              </div>
+            </div>
+            <div class="range-container">
+              <input type="range" id="leverageRange" min="5" max="50" step="1" value="20" class="custom-range">
+              <div class="range-labels">
+                <span>5x</span>
+                <span>20x</span>
+                <span>50x</span>
+              </div>
             </div>
           </div>
 
-          <label class="form-label">API KEY</label>
-          <input type="password" id="apiKeyInput" class="input-field" placeholder="Your API Key" />
-
-          <label class="form-label">API SECRET</label>
-          <input type="password" id="apiSecretInput" class="input-field" placeholder="Your API Secret" />
-
-          <button id="btnSaveApi" class="btn-ghost" style="margin-top:8px">
-            SAVE CREDENTIALS
-          </button>
+          <!-- Risk % -->
+          <div class="setting-item mt-6">
+            <label class="label-tiny mb-2 block">Risk % per Trade</label>
+            <div class="input-wrapper">
+              <input type="text" id="riskInput" value="1.0" class="p-input">
+              <div class="input-suffix">
+                <span>%</span>
+                <div class="divider-v"></div>
+                <span id="btnSaveRisk" class="badge-tiny clickable">SAVE</span>
+              </div>
+            </div>
+            <div class="quick-risk-grid">
+              <button class="risk-chip" data-val="0.1">0.1%</button>
+              <button class="risk-chip" data-val="0.5">0.5%</button>
+              <button class="risk-chip active" data-val="1.0">1.0%</button>
+              <button class="risk-chip" data-val="2.5">2.5%</button>
+            </div>
+          </div>
         </div>
 
-        <!-- Worker URL -->
-        <div class="card mb-10">
-          <label class="form-label">Worker Proxy URL</label>
-          <input type="text" id="workerUrlInput" class="input-field"
-            placeholder="https://nexus-worker.yourdomain.workers.dev" style="margin-bottom:0" />
+        <!-- Advanced Bento -->
+        <div class="bento-row">
+          <div class="bento-small">
+            <div class="label-row-group">
+              <span class="material-symbols-outlined icon-xs gold">security</span>
+              <span class="label-tiny">Trailing SL</span>
+            </div>
+            <div class="toggle-group">
+              <span id="trailingSLText" class="toggle-label">ENABLED</span>
+              <div class="toggle-switch active" id="trailingSLToggle">
+                <div class="toggle-nob"></div>
+              </div>
+            </div>
+          </div>
+          <div class="bento-small">
+            <div class="label-row-group">
+              <span class="material-symbols-outlined icon-xs gold">rocket_launch</span>
+              <span class="label-tiny">Scalp Mode</span>
+            </div>
+            <div class="toggle-group">
+              <span id="scalpModeText" class="toggle-label text-dim">OFF</span>
+              <div class="toggle-switch" id="scalpModeToggle">
+                <div class="toggle-nob"></div>
+              </div>
+            </div>
+          </div>
         </div>
-
       </section>
-    </div><!-- /tab-settings -->
+    </div>
+
+    <!-- TAB: CHAT -->
+    <div id="tab-chat" class="tab-content h-full">
+      <div class="chat-wrapper">
+        <div id="chatLog" class="chat-log custom-scrollbar">
+          <div class="time-divider">
+            <span class="time-tag">Terminal Console Initialized</span>
+          </div>
+          <!-- Messages will be injected here -->
+          <div class="chat-msg bot">
+            <div class="msg-header">
+              <span class="sender-name">Nexus AI</span>
+              <span class="online-dot"></span>
+            </div>
+            <div class="msg-bubble bot">
+              <p>Welcome to Nexus AI Terminal. I am monitoring signals 24/7. Use /help to see commands.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-footer">
+          <div class="input-inner">
+            <button class="add-btn"><span class="material-symbols-outlined">add_circle</span></button>
+            <input type="text" id="chatInput" placeholder="Ask bot or give command..." autocomplete="off">
+            <button id="btnSendChat" class="send-btn">
+              <span class="material-symbols-outlined">send</span>
+            </button>
+          </div>
+          <div class="suggest-chips no-scrollbar">
+            <button class="s-chip" data-cmd="/status">/status</button>
+            <button class="s-chip" data-cmd="/positions">/positions</button>
+            <button class="s-chip" data-cmd="/strategy">/strategy</button>
+            <button class="s-chip" data-cmd="/news">/news</button>
+            <button class="s-chip" data-cmd="/ai">/ai</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: SETTINGS -->
+    <div id="tab-settings" class="tab-content">
+      <section class="settings-stack">
+        <h2 class="title-xs">API Connection</h2>
+        <div id="apiStatusSect" class="status-indicator-box success">
+          <span class="dot-small"></span>
+          <span id="apiStatusText" class="status-label-small">Connected to Binance</span>
+        </div>
+
+        <div class="input-group-stack">
+          <div class="input-box-dark">
+            <label class="input-label-tiny">API Key</label>
+            <div class="input-row">
+              <input type="password" id="apiKeyInput" placeholder="Binance API Key">
+              <span class="material-symbols-outlined icon-btn" id="toggleApiKey">visibility</span>
+            </div>
+          </div>
+          <div class="input-box-dark">
+            <label class="input-label-tiny">API Secret</label>
+            <div class="input-row">
+              <input type="password" id="apiSecretInput" placeholder="Binance API Secret">
+            </div>
+          </div>
+          <div class="input-box-dark">
+            <label class="input-label-tiny">Worker Proxy URL</label>
+            <div class="input-row">
+              <input type="text" id="workerUrlInput" placeholder="https://your-worker.workers.dev">
+            </div>
+          </div>
+          <div class="testnet-row">
+             <label class="toggle-label-tiny">Use Binance Testnet</label>
+             <input type="checkbox" id="testnetToggle">
+          </div>
+          <button id="btnSaveApi" class="btn-ghost-gold">SAVE CREDENTIALS</button>
+        </div>
+
+        <!-- News AI Integration -->
+        <h2 class="title-xs mt-6">News AI Analysis (Groq Qwen)</h2>
+        <div class="input-group-stack">
+           <div class="input-box-dark">
+             <label class="input-label-tiny">Groq Cloud API Key</label>
+             <div class="input-row">
+               <input type="password" id="groqApiKey" placeholder="gsk_...">
+             </div>
+           </div>
+           <div class="input-box-dark">
+             <label class="input-label-tiny">NewsAPI Key</label>
+             <div class="input-row">
+               <input type="password" id="newsApiKey" placeholder="Your NewsAPI Key">
+             </div>
+           </div>
+           <button id="btnSaveNewsAi" class="btn-ghost-gold">SAVE NEWS AI KEYS</button>
+        </div>
+
+        <!-- Deep AI Integration (Custom Endpoint) -->
+        <h2 class="title-xs mt-6">Custom Deep AI Endpoint</h2>
+        <div class="input-group-stack">
+           <div class="input-box-dark">
+             <label class="input-label-tiny">Deep AI Endpoint URL</label>
+             <div class="input-row">
+               <input type="text" id="deepAiEndpoint" placeholder="https://api.deepai.com/v1/...">
+             </div>
+           </div>
+           <div class="input-box-dark">
+             <label class="input-label-tiny">Deep AI API Key</label>
+             <div class="input-row">
+               <input type="password" id="deepAiKey" placeholder="Your API Key">
+             </div>
+           </div>
+           <button id="btnTestDeepAi" class="btn-ghost-gold">TEST AI CONNECTION</button>
+        </div>
+
+        <h2 class="title-xs mt-6">Subscription</h2>
+        <div class="sub-card">
+          <div class="sub-card-header">
+             <div class="plan-info">
+               <span class="label-tiny">Monthly Plan</span>
+               <h3 class="price-val">0.05 BNB</h3>
+             </div>
+             <div class="plan-badge">PRO TRADER</div>
+          </div>
+          <div class="sub-body">
+            <div class="qr-container">
+              <div id="qrPlaceholder" class="qr-mock">
+                 <span class="material-symbols-outlined">qr_code_2</span>
+              </div>
+            </div>
+            <div class="address-sect">
+               <span class="label-tiny">Deposit Address (BEP20)</span>
+               <div class="address-copy-row">
+                 <span class="addr-text">0x71C76...d8976F</span>
+                 <span class="material-symbols-outlined copy-icon">content_copy</span>
+               </div>
+            </div>
+          </div>
+          <div class="sub-footer">
+            <div class="expiry-info">
+              <span class="label-tiny">Expires In</span>
+              <span id="expiryTimer" class="timer-red">14h 22m 08s</span>
+            </div>
+            <button id="btnVerifyTX" class="btn-verify">VERIFY TX</button>
+          </div>
+        </div>
+      </section>
+    </div>
 
   </main>
 
+  <!-- Confirmation Modals -->
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="modalTitle">Confirm Action</h3>
+      <p id="modalDesc">Are you sure you want to proceed?</p>
+      <div class="modal-btns">
+        <button id="modalCancel" class="btn-secondary">Cancel</button>
+        <button id="modalConfirm" class="btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <script src="hmac-sha256.js"></script>
-  <script src="sidepanel.js"></script>
+  <script type="module" src="sidepanel.js"></script>
 </body>
 
 </html>

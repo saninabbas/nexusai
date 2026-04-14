@@ -1,51 +1,100 @@
-// background.js
+/**
+ * background.js - Nexus AI Core Service Worker
+ * Entry point for alarms, global state, and engine orchestration.
+ */
+
+import { TradingEngine } from './trading-engine.js';
 import { generateSignature } from './hmac-sha256.js';
 
 let isRunning = false;
-let apiKeys = { key: '', secret: '', testnet: true };
-let tradeSettings = { leverage: 20, risk: 5 };
+let apiKeys = { key: '', secret: '', workerUrl: '', testnet: true };
+let tradeSettings = { leverage: 20, risk: 1, strategy: 'auto_rotate', trailingSL: true, scalpMode: false };
+let deepAiSettings = { endpoint: '', key: '' };
+let newsAiSettings = { groqKey: '', newsKey: '' };
+let engine = null;
 
+// Rotation State — includes News AI every ~30 mins via throttle in trading-engine
+const ROTATION_LIST = ['ema_sentiment', 'rsi_volume', 'breakout_news', 'mean_reversion', 'scalp_momentum', 'news_ai'];
+let currentRotateIndex = 0;
+let lastRotationTime = Date.now();
+
+// Risk State
+let startOfDayEquity = 0;
+let lastEquityCheckTime = 0;
+
+// INIT
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.set({ botStatus: { running: false } });
-    // Set side panel to open when action icon is clicked
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
-// Open side panel when toolbar icon is clicked
+// ACTION
 chrome.action.onClicked.addListener((tab) => {
     chrome.sidePanel.open({ tabId: tab.id });
 });
 
+// ALARMS
 chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'botLoop' && isRunning) {
-        executeTradingStrategy();
+        handleMainLoop();
     }
 });
 
-// Listener for Side Panel
+async function handleMainLoop() {
+    await initEngine();
+    if (!engine) return;
+
+    // 1. Check Daily Loss Limit
+    const limitHit = await checkLossLimit();
+    if (limitHit) {
+        stopBot("DAILY LOSS LIMIT (5%) REACHED. Stopping for safety.");
+        return;
+    }
+
+    // 2. Resolve Strategy (Auto Rotate logic)
+    let activeStrategy = tradeSettings.strategy;
+    if (activeStrategy === 'auto_rotate') {
+        const now = Date.now();
+        if (now - lastRotationTime > 300000) { // 5 minutes
+            currentRotateIndex = (currentRotateIndex + 1) % ROTATION_LIST.length;
+            activeStrategy = ROTATION_LIST[currentRotateIndex];
+            lastRotationTime = now;
+            logToPanel(`[AUTO-ROTATE] Switching to ${activeStrategy.toUpperCase()} technique.`);
+        } else {
+            activeStrategy = ROTATION_LIST[currentRotateIndex];
+        }
+    }
+
+    // 3. Run Decision Cycle
+    await engine.runDecisionCycle('BTCUSDT', activeStrategy);
+}
+
+// MESSAGE HANDLER
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "start_bot") {
         isRunning = true;
         loadSettings().then(() => {
-            chrome.alarms.create('botLoop', { periodInMinutes: 0.5 }); // running every 30s
+            chrome.alarms.create('botLoop', { periodInMinutes: 1 });
+            lastRotationTime = Date.now();
             sendResponse({ status: "started" });
         });
-        return true; 
+        return true;
     } 
     else if (msg.action === "stop_bot") {
-        isRunning = false;
-        chrome.alarms.clear('botLoop');
+        stopBot("User initiated stop.");
         sendResponse({ status: "stopped" });
     }
     else if (msg.action === "kill_session") {
-        loadSettings().then(() => {
-            killAllPositions().then(() => sendResponse({ status: "killed" }));
+        initEngine().then(async () => {
+            await killAllPositions();
+            stopBot("KILL SIGNAL EXECUTED.");
+            sendResponse({ status: "killed" });
         });
         return true;
     }
     else if (msg.action === "get_dashboard_data") {
         loadSettings().then(async () => {
-            if (!apiKeys.key) { sendResponse({ error: "Missing API Keys" }); return; }
+            if (!apiKeys.key) { sendResponse({ error: "Missing Keys" }); return; }
             try {
                 const account = await binanceRequest('GET', '/fapi/v2/account');
                 const positions = await binanceRequest('GET', '/fapi/v2/positionRisk');
@@ -56,207 +105,126 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
         return true;
     }
+    else if (msg.action === "update_settings") {
+        tradeSettings = msg.settings;
+        initEngine();
+    }
+    else if (msg.action === "reload_config") {
+        loadSettings();
+        initEngine();
+    }
+    else if (msg.action === "run_news_ai") {
+        runNewsAiNow();
+    }
 });
 
 async function loadSettings() {
-    const data = await chrome.storage.local.get(['api', 'settings']);
+    const data = await chrome.storage.local.get(['api', 'settings', 'botStatus', 'deepAi', 'newsAi']);
     if (data.api) apiKeys = data.api;
     if (data.settings) tradeSettings = data.settings;
-}
-
-// Helper: Binance API Fetcher
-async function binanceRequest(method, endpoint, params = {}) {
-    const baseUrl = apiKeys.testnet ? 'https://testnet.binancefuture.com' : 'https://fapi.binance.com';
+    if (data.deepAi) deepAiSettings = data.deepAi;
+    if (data.newsAi) newsAiSettings = data.newsAi;
+    if (data.botStatus) isRunning = data.botStatus.running;
     
-    // Auto-inject timestamp
-    params.timestamp = Date.now();
-    params.recvWindow = 5000;
-    
-    // Build query string
-    const queryParts = [];
-    for (let key in params) {
-        queryParts.push(`${key}=${encodeURIComponent(params[key])}`);
-    }
-    const queryString = queryParts.join('&');
-    
-    // Sign payload
-    const signature = await generateSignature(queryString, apiKeys.secret);
-    const finalUrl = `${baseUrl}${endpoint}?${queryString}&signature=${signature}`;
-    
-    const res = await fetch(finalUrl, {
-        method: method,
-        headers: {
-            'X-MBX-APIKEY': apiKeys.key,
-            'Content-Type': 'application/json'
-        }
-    });
-    
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.msg || "Binance API Error");
-    return data;
-}
-
-async function executeTradingStrategy() {
-    if (!isRunning) return;
-    console.log("[Nexus AI] Analyzing markets...");
-    
-    try {
-        await loadSettings();
-        if (!apiKeys.key || !apiKeys.secret) {
-            console.warn("[Nexus AI] API keys missing. Strategy skipped.");
-            return;
-        }
-
-        const symbol = 'BTCUSDT';
-        
-        // 1. Check for current open positions for this symbol
-        const positions = await binanceRequest('GET', '/fapi/v2/positionRisk', { symbol });
-        const currentPos = positions.find(p => p.symbol === symbol && parseFloat(p.positionAmt) !== 0);
-        
-        if (currentPos) {
-            console.log(`[Nexus AI] Already in a ${parseFloat(currentPos.positionAmt) > 0 ? 'LONG' : 'SHORT'} position. Watching for exit signals or taking no action.`);
-            // Note: Exit logic (optional) could be added here.
-            return;
-        }
-
-        // 2. Fetch last 100 klines (1h timeframe)
-        const klines = await binanceRequest('GET', '/fapi/v1/klines', { 
-            symbol, 
-            interval: '1h', 
-            limit: 100 
+    // Auto-resume if running
+    if (isRunning) {
+        chrome.alarms.get('botLoop', (a) => {
+            if (!a) chrome.alarms.create('botLoop', { periodInMinutes: 1 });
         });
-        
-        // Close prices (index 4)
-        const closes = klines.map(k => parseFloat(k[4]));
-        
-        // 3. Calculate Indicators
-        const ema9 = calculateEMA(closes, 9);
-        const ema21 = calculateEMA(closes, 21);
-        const rsi14 = calculateRSI(closes, 14);
-        
-        const lastEma9 = ema9[ema9.length - 1];
-        const lastEma21 = ema21[ema21.length - 1];
-        const lastRsi14 = rsi14[rsi14.length - 1];
-
-        console.log(`[Nexus AI] Indicators for ${symbol}: EMA9=${lastEma9.toFixed(2)}, EMA21=${lastEma21.toFixed(2)}, RSI14=${lastRsi14.toFixed(2)}`);
-
-        // 4. Signal Logic
-        let side = null;
-        if (lastEma9 > lastEma21 && lastRsi14 > 50) {
-            side = 'BUY'; // LONG
-        } else if (lastEma9 < lastEma21 && lastRsi14 < 50) {
-            side = 'SELL'; // SHORT
-        }
-
-        if (side) {
-            console.log(`[Nexus AI] SIGNAL DETECTED: ${side === 'BUY' ? 'LONG' : 'SHORT'}`);
-            await placeOrder(symbol, side);
-        } else {
-            console.log("[Nexus AI] No clear signal. Waiting for next cycle.");
-        }
-
-    } catch (e) {
-        console.error("[Nexus AI] Strategy Execution Error:", e);
     }
 }
 
-// Indicator Helpers
-function calculateEMA(data, period) {
-    const k = 2 / (period + 1);
-    let ema = [data[0]];
-    for (let i = 1; i < data.length; i++) {
-        ema.push(data[i] * k + ema[i - 1] * (1 - k));
+async function initEngine() {
+    await loadSettings();
+    if (apiKeys.key && apiKeys.secret) {
+        engine = new TradingEngine(apiKeys, tradeSettings, deepAiSettings);
     }
-    return ema;
 }
 
-function calculateRSI(data, period) {
-    let gains = [];
-    let losses = [];
-    for (let i = 1; i < data.length; i++) {
-        let diff = data[i] - data[i - 1];
-        gains.push(diff > 0 ? diff : 0);
-        losses.push(diff < 0 ? Math.abs(diff) : 0);
+// Manual News AI trigger from Chat /news command
+async function runNewsAiNow() {
+    await initEngine();
+    if (!engine) { logToPanel('[NEWS AI] Engine not ready - check API keys.'); return; }
+    const signal = await engine.strategyNewsAI('BTCUSDT');
+    logToPanel(`[NEWS AI] Manual Check → ${signal.action} | ${signal.reason}`);
+    if (signal.action !== 'NONE') {
+        const klines = await engine.binanceRequest('GET', '/fapi/v1/klines', { symbol: 'BTCUSDT', interval: '5m', limit: 20 });
+        const marketData = engine.parseKlines(klines);
+        const atr = engine.calculateATR(marketData.highs, marketData.lows, marketData.closes, 14).pop();
+        const price = marketData.closes[marketData.closes.length - 1];
+        await engine.executeTrade('BTCUSDT', signal.action, price, atr);
     }
-
-    let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
-
-    let rsi = [];
-    for (let i = period; i < gains.length; i++) {
-        avgGain = (avgGain * (period - 1) + gains[i]) / period;
-        avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
-        let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-        rsi.push(100 - (100 / (1 + rs)));
-    }
-    return rsi;
 }
 
-// Order Helpers
-async function placeOrder(symbol, side) {
+async function checkLossLimit() {
     try {
         const account = await binanceRequest('GET', '/fapi/v2/account');
-        const equity = parseFloat(account.totalMarginBalance);
-        
-        // Calculate Quantity: (Equity * Risk%) / currentPrice * leverage
-        const ticker = await binanceRequest('GET', '/fapi/v1/ticker/price', { symbol });
-        const price = parseFloat(ticker.price);
-        
-        const riskVal = parseFloat(tradeSettings.risk) / 100;
-        const leverage = parseFloat(tradeSettings.leverage);
-        
-        // Simplified quantity calculation
-        let quantity = (equity * riskVal * leverage) / price;
-        
-        // Round to 3 decimals (BTCUSDT precision)
-        quantity = Math.floor(quantity * 1000) / 1000;
-        
-        if (quantity === 0) {
-            console.warn("[Nexus AI] Calculated quantity is too low. Check balance or risk settings.");
-            return;
+        const currentEquity = parseFloat(account.totalMarginBalance);
+
+        // Reset startOfDayEquity every 24h
+        const now = Date.now();
+        if (now - lastEquityCheckTime > 86400000 || startOfDayEquity === 0) {
+            startOfDayEquity = currentEquity;
+            lastEquityCheckTime = now;
+            return false;
         }
 
-        console.log(`[Nexus AI] Placing ${side} order for ${symbol}: Qty=${quantity}, Lev=${leverage}x`);
-        
-        // Set Leverage first
-        await binanceRequest('POST', '/fapi/v1/leverage', { symbol, leverage });
-
-        // Place Market Order
-        const order = await binanceRequest('POST', '/fapi/v1/order', {
-            symbol: symbol,
-            side: side,
-            type: 'MARKET',
-            quantity: quantity.toString()
-        });
-
-        console.log("[Nexus AI] Order Placed Successfully:", order.orderId);
+        const drawdown = (startOfDayEquity - currentEquity) / startOfDayEquity;
+        if (drawdown >= 0.05) return true; // 5% limit
+        return false;
     } catch (e) {
-        console.error("[Nexus AI] Order Placement Failed:", e);
+        return false;
     }
+}
+
+function stopBot(reason) {
+    isRunning = false;
+    chrome.alarms.clear('botLoop');
+    chrome.storage.local.set({ botStatus: { running: false } });
+    if (reason) logToPanel(`[SYSTEM] ${reason}`);
+}
+
+function logToPanel(msg) {
+    chrome.runtime.sendMessage({ action: "push_log", message: msg });
+}
+
+// Global Binance Request Helper
+async function binanceRequest(method, endpoint, params = {}) {
+    const baseUrl = apiKeys.testnet ? 'https://testnet.binancefuture.com' : 'https://fapi.binance.com';
+    params.timestamp = Date.now();
+    params.recvWindow = 5000;
+    const queryString = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&');
+    const signature = await generateSignature(queryString, apiKeys.secret);
+    const finalUrl = `${baseUrl}${endpoint}?${queryString}&signature=${signature}`;
+
+    const res = await fetch(finalUrl, {
+        method,
+        headers: { 'X-MBX-APIKEY': apiKeys.key }
+    });
+    return await res.json();
 }
 
 async function killAllPositions() {
+    console.log("[Nexus AI] FORCED KILL INITIATED");
     try {
-        console.log("[Nexus AI] Killing session - canceling open orders");
-        // Warning: This API cancels all orders for a symbol. 
-        // We fetch active positions first.
         const positions = await binanceRequest('GET', '/fapi/v2/positionRisk');
         const active = positions.filter(p => parseFloat(p.positionAmt) !== 0);
-        
         for (let p of active) {
             await binanceRequest('DELETE', '/fapi/v1/allOpenOrders', { symbol: p.symbol });
-            
-            // Market close existing
-            const size = parseFloat(p.positionAmt);
-            const side = size > 0 ? "SELL" : "BUY";
+            const side = parseFloat(p.positionAmt) > 0 ? "SELL" : "BUY";
             await binanceRequest('POST', '/fapi/v1/order', {
                 symbol: p.symbol,
                 side: side,
                 type: 'MARKET',
-                quantity: Math.abs(size).toString()
+                quantity: Math.abs(parseFloat(p.positionAmt)).toString(),
+                reduceOnly: 'true'
             });
         }
     } catch(e) {
-        console.error("Failed to kill session:", e);
+        console.error("Kill failed:", e);
     }
 }
+
+// Initial Boot
+loadSettings();
+initEngine();

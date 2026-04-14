@@ -1,143 +1,202 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nexus AI — Autonomous Binance Futures Trading</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          },
-          colors: {
-            binance: '#FCD535',
-            'binance-dark': '#F0B90B',
-            bgDark: '#0B0E11',
-            surface: '#1E2329',
-            greenUp: '#0ECB81',
-            textGray: '#848E9C'
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Professional Binance Futures AutoBot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --binance-gold: #FCD535;
+            --binance-black: #0B0E11;
+            --binance-surface: #1E2329;
+            --binance-gray: #707A8A;
+            --green: #00C087;
+            --red: #F6465A;
         }
-      }
-    }
-  </script>
-  <style>
-    body { background-color: #0B0E11; color: #EAECEF; }
-  </style>
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--binance-black);
+            color: white;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+        header {
+            padding: 24px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--binance-gold);
+            letter-spacing: -1px;
+        }
+
+        .hero {
+            padding: 100px 0;
+            text-align: center;
+            background: radial-gradient(circle at center, #1e2329 0%, #0b0e11 100%);
+        }
+
+        h1 {
+            font-size: 64px;
+            font-weight: 900;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+            line-height: 1.1;
+        }
+
+        h1 span { color: var(--binance-gold); }
+
+        .hero p {
+            font-size: 20px;
+            color: var(--binance-gray);
+            max-width: 700px;
+            margin: 0 auto 40px;
+        }
+
+        .btn {
+            background-color: var(--binance-gold);
+            color: var(--binance-black);
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            background-color: #f0c32d;
+        }
+
+        .features { padding: 100px 0; }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .feature-item {
+            background-color: var(--binance-surface);
+            padding: 40px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .feature-item h3 {
+            color: var(--binance-gold);
+            margin-bottom: 16px;
+            font-size: 20px;
+        }
+
+        .pricing {
+            padding: 100px 0;
+            text-align: center;
+        }
+
+        .pricing-card {
+            background: linear-gradient(145deg, #1e2329, #0b0e11);
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 60px;
+            border-radius: 24px;
+            border: 1px solid var(--binance-gold);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .pricing-card h2 { font-size: 48px; margin-bottom: 16px; }
+        .pricing-card p { color: var(--binance-gray); margin-bottom: 40px; }
+
+        footer {
+            padding: 60px 0;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            text-align: center;
+            color: var(--binance-gray);
+            font-size: 14px;
+        }
+
+        .footer-logo { color: var(--binance-gold); font-weight: 900; margin-bottom: 16px; }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 40px; }
+            .feature-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
-<body class="antialiased flex flex-col min-h-screen">
-  
-  <nav class="border-b border-surface/50 bg-bgDark/80 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded bg-binance flex items-center justify-center text-bgDark font-black text-xl leading-none">N</div>
-        <span class="font-black text-xl tracking-tight">Nexus AI</span>
-      </div>
-      <div class="flex items-center gap-4">
-        <a href="#pricing" class="text-textGray hover:text-white text-sm font-semibold transition-colors">Pricing</a>
-        <a href="#install" class="bg-surface hover:bg-surface/80 text-white px-4 py-2 rounded font-bold text-sm transition-colors border border-surface/50">Install Extension</a>
-      </div>
-    </div>
-  </nav>
+<body>
 
-  <main class="flex-grow">
-    <!-- Hero -->
-    <section class="max-w-6xl mx-auto px-4 py-24 flex flex-col md:flex-row items-center gap-12">
-      <div class="flex-1 md:pr-12 text-center md:text-left">
-        <div class="inline-block bg-surface px-3 py-1 rounded border border-surface text-xs font-bold text-binance mb-6">
-          V1.0 NOW LIVE ON TESTNET & MAINNET
-        </div>
-        <h1 class="text-5xl md:text-7xl font-black tracking-tighter leading-[1.1] mb-6">
-          Trade Futures <br>
-          <span class="text-transparent bg-clip-text bg-gradient-to-r from-binance to-[#ffea73]">Autonomously.</span>
-        </h1>
-        <p class="text-lg text-textGray mb-8 max-w-xl mx-auto md:mx-0">
-          Nexus AI operates directly from your Chrome sidebar. Real-time API execution, built-in Gemini Flash AI, and completely stateless. Never miss an entry again.
-        </p>
-        <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-          <a href="#install" class="bg-binance hover:bg-binance-dark text-bgDark px-8 py-4 rounded-lg font-black text-lg transition-transform hover:scale-105 active:scale-95 text-center">
-            Get the Extension
-          </a>
-          <a href="#pricing" class="bg-surface hover:bg-surface/80 px-8 py-4 rounded-lg font-bold text-lg text-white text-center transition-colors">
-            View Pricing
-          </a>
-        </div>
-      </div>
-      
-      <!-- Placeholder for sidepanel screenshot -->
-      <div class="flex-1 w-full max-w-sm rounded-[24px] border-8 border-surface shadow-[0_32px_64px_rgba(252,213,53,0.1)] overflow-hidden relative drop-shadow-2xl translate-y-4 hover:-translate-y-2 transition-transform duration-500">
-        <div class="w-full pt-[177%] bg-bgDark relative">
-          <!-- A mock representation -->
-          <div class="absolute inset-0 flex flex-col p-4 bg-[#111319]">
-             <div class="w-full flex justify-between items-center mb-6 mt-4">
-                 <div class="text-binance font-black">Binance</div>
-                 <div class="w-6 h-6 rounded-full bg-surface"></div>
-             </div>
-             <div class="text-textGray text-xs mb-1">TOTAL EQUITY</div>
-             <div class="text-4xl font-black mb-8">$12,458.32</div>
-             
-             <div class="bg-[#282a30] rounded-xl p-4 mb-4">
-                 <div class="flex justify-between items-start mb-4">
-                     <div>
-                         <div class="font-bold">BTCUSDT <span class="bg-binance/20 text-binance text-[9px] px-1 ml-1 rounded">20x</span></div>
-                         <div class="text-greenUp text-[10px] tracking-widest font-bold mt-1">LONG</div>
-                     </div>
-                     <div class="text-right">
-                         <div class="text-textGray text-[10px]">ROE</div>
-                         <div class="text-greenUp font-bold">+18.42%</div>
-                     </div>
-                 </div>
-                 <div class="w-full h-8 bg-[#1e1f26] rounded"></div>
-             </div>
-             
-             <div class="w-full py-4 mt-auto rounded-xl bg-gradient-to-r from-binance/80 to-binance text-[#3b2f00] font-black text-center shadow-[0_0_20px_rgba(252,213,53,0.4)]">
-                 START ENGINE
-             </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Pricing / How to activate -->
-    <section id="pricing" class="bg-surface/20 py-24">
-      <div class="max-w-4xl mx-auto px-4 text-center">
-        <h2 class="text-3xl md:text-5xl font-black mb-4">Transparent Pricing. No Setup Fees.</h2>
-        <p class="text-textGray mb-12">Pay directly on-chain. Our backend validates your transaction instantly.</p>
-        
-        <div class="bg-surface p-8 md:p-12 rounded-2xl border border-surface flex flex-col md:flex-row shadow-2xl items-center gap-8 max-w-3xl mx-auto">
-          <div class="flex-1 text-left">
-            <h3 class="text-2xl font-bold mb-2">Pro Subscription</h3>
-            <p class="text-textGray text-sm mb-6">30 Days of Autonomous Trading + Gemini AI access.</p>
-            <ul class="space-y-3 font-semibold text-sm">
-               <li class="flex items-center gap-2">✅ Uses Binance testnet & mainnet</li>
-               <li class="flex items-center gap-2">✅ Integrated Gemini AI Chat</li>
-               <li class="flex items-center gap-2">✅ Runs entirely in Chrome memory</li>
-            </ul>
-          </div>
-          <div class="flex-1 flex flex-col items-center">
-            <div class="text-5xl font-black text-binance mb-2">0.05 BNB</div>
-            <div class="text-textGray text-sm mb-6">monthly via BSC</div>
-            <p class="text-xs text-textGray mb-2">Send precisely 0.05 BNB to:</p>
-            <div class="bg-bgDark px-3 py-2 rounded text-xs w-full text-center font-mono border border-surface break-all select-all">
-              0x11223344556677889900AABBCCDDEEFF
+    <div class="container">
+        <header>
+            <div class="logo">NEXUS AI</div>
+            <div class="nav-links">
+                <a href="#features" style="color: white; text-decoration: none; margin-left: 24px;">Features</a>
+                <a href="#pricing" style="color: var(--binance-gold); text-decoration: none; margin-left: 24px; font-weight: 700;">Get Started</a>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="bg-bgDark border-t border-surface/50 py-12 mt-12">
-    <div class="max-w-6xl mx-auto px-4 text-center text-textGray text-sm">
-      <p>&copy; 2026 Nexus AI. All rights reserved.</p>
-      <p class="mt-2 text-xs">This is a frontend sidepanel trading engine. API keys are stored locally on your machine. Not financial advice.</p>
+        </header>
     </div>
-  </footer>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Autonomous <span>High-Conviction</span><br>Trading Strategy.</h1>
+            <p>Nexus AI combines advanced Technical Analysis with real-time Social Sentiment to execute high-probability trades on Binance Futures 24/7.</p>
+            <a href="#" class="btn">INSTALL EXTENSION</a>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <div class="container">
+            <h2 style="text-align: center; font-size: 40px;">Why Nexus AI?</h2>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h3>Adaptive AI Engine</h3>
+                    <p>Uses EMA Crossovers, RSI Momentum, and ATR-based volatility tracking to find the perfect entry.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>Sentiment Weighted</h3>
+                    <p>Scans X (Twitter) and Reddit using specialized keyword weighting to align with market conviction.</p>
+                </div>
+                <div class="feature-item">
+                    <h3>Hard Risk Rules</h3>
+                    <p>Strict 1% equity risk per trade with automatic Stop-Loss and multi-tier Take-Profit management.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="pricing-card">
+                <p>PRO PLAN</p>
+                <h2>0.05 BNB</h2>
+                <p>Per Month / Billed via BSC</p>
+                <ul style="list-style: none; text-align: left; margin-bottom: 40px; color: var(--binance-gray);">
+                    <li style="margin-bottom: 12px;">✅ 24/7 Autonomous Execution</li>
+                    <li style="margin-bottom: 12px;">✅ Sentiment Proxy Access</li>
+                    <li style="margin-bottom: 12px;">✅ Real-time PnL & Dashboard</li>
+                    <li style="margin-bottom: 12px;">✅ Pro Trade Signals (BTC/ETH/SOL)</li>
+                </ul>
+                <a href="#" class="btn" style="width: 100%;">GET NEXUS PRO</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-logo">NEXUS AI</div>
+            <p>&copy; 2026 Nexus AI Trading Systems. Powered by Cloudflare Workers.</p>
+        </div>
+    </footer>
 
 </body>
 </html>
