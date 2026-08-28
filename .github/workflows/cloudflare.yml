@@ -13,6 +13,10 @@ concurrency:
   group: nexus-trader-production
   cancel-in-progress: true
 
+env:
+  CLOUDFLARE_ACCOUNT_ID: ca091d9551571d3a928a258b0c95dd4c
+  D1_DATABASE_NAME: nexus-trader-licenses
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -34,25 +38,55 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify deployment configuration
+      - name: Verify Cloudflare API token
         env:
-          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          if [ -z "$CLOUDFLARE_D1_DATABASE_ID" ]; then
-            echo "::error::Missing CLOUDFLARE_D1_DATABASE_ID repository secret."
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Missing CLOUDFLARE_API_TOKEN repository secret."
             exit 1
           fi
 
+      - name: Ensure D1 database
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          response="$(curl -fsS             --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database")"
+
+          database_id="$(DB_NAME="$D1_DATABASE_NAME" node -e '
+            const fs = require("fs");
+            const payload = JSON.parse(fs.readFileSync(0, "utf8"));
+            if (!payload.success) process.exit(1);
+            const database = (payload.result || []).find((item) => item.name === process.env.DB_NAME);
+            if (database) process.stdout.write(database.uuid);
+          ' <<< "$response")"
+
+          if [ -z "$database_id" ]; then
+            response="$(curl -fsS               --request POST               --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               --header "Content-Type: application/json"               --data "{\"name\":\"$D1_DATABASE_NAME\"}"               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database")"
+
+            database_id="$(node -e '
+              const fs = require("fs");
+              const payload = JSON.parse(fs.readFileSync(0, "utf8"));
+              if (!payload.success || !payload.result?.uuid) process.exit(1);
+              process.stdout.write(payload.result.uuid);
+            ' <<< "$response")"
+          fi
+
+          if [ -z "$database_id" ]; then
+            echo "::error::Could not resolve or create the D1 database."
+            exit 1
+          fi
+
+          echo "CLOUDFLARE_D1_DATABASE_ID=$database_id" >> "$GITHUB_ENV"
+
       - name: Build application
         run: npm run build
-        env:
-          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
 
       - name: Apply database migrations
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: website
           command: d1 migrations apply DB --remote --config dist/server/wrangler.json
 
@@ -60,6 +94,6 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: website
           command: deploy --config dist/server/wrangler.json
