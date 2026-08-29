@@ -20,5 +20,6 @@ export function GET() {
     testnetOnly: true,
     officialSite: OFFICIAL_SITE_URL,
     extensionDownload: `${OFFICIAL_SITE_URL}${EXTENSION_DOWNLOAD_PATH}`,
+    downloadRequiresPayment: true,
   });
 }

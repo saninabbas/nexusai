@@ -20,6 +20,7 @@ test("production worker exposes the extension health contract", async () => {
       version: payload.version,
       testnetOnly: payload.testnetOnly,
       officialSite: payload.officialSite,
+      downloadRequiresPayment: payload.downloadRequiresPayment,
     },
     {
       ok: true,
@@ -27,6 +28,7 @@ test("production worker exposes the extension health contract", async () => {
       version: "3.1.0",
       testnetOnly: true,
       officialSite: "https://nexus-ai-trading-bot.local-sass.workers.dev",
+      downloadRequiresPayment: true,
     },
   );
 });
