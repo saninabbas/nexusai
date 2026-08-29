@@ -98,16 +98,30 @@ jobs:
           workingDirectory: website
           command: deploy --config dist/server/wrangler.json
 
-      - name: Verify production health
+      - name: Verify production health and download gate
         env:
-          HEALTH_URL: https://nexus-ai-trading-bot.local-sass.workers.dev/api/health
+          SITE_URL: https://nexus-ai-trading-bot.local-sass.workers.dev
         run: |
-          response="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 2 "$HEALTH_URL")"
+          response="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 2 "$SITE_URL/api/health")"
           HEALTH_RESPONSE="$response" node -e '
             const payload = JSON.parse(process.env.HEALTH_RESPONSE);
-            if (!payload.ok || payload.version !== "3.1.0" || payload.testnetOnly !== true) {
+            if (!payload.ok || payload.version !== "3.1.0" || payload.testnetOnly !== true || payload.downloadRequiresPayment !== true) {
               console.error("Unexpected production health response:", payload);
               process.exit(1);
             }
             console.log(`Verified ${payload.product} ${payload.version} production health.`);
           '
+
+          legacy_status="$(curl --silent --output /dev/null --write-out "%{http_code}" "$SITE_URL/Nexus-Trader-Extension.zip")"
+          if [ "$legacy_status" != "404" ] && [ "$legacy_status" != "410" ]; then
+            echo "::error::Legacy public ZIP route returned HTTP $legacy_status."
+            exit 1
+          fi
+
+          protected_status="$(curl --silent --output /dev/null --write-out "%{http_code}" "$SITE_URL/api/extensions/download")"
+          if [ "$protected_status" != "402" ]; then
+            echo "::error::Protected download route returned HTTP $protected_status instead of 402."
+            exit 1
+          fi
+
+          echo "Verified that extension downloads are blocked before payment."
