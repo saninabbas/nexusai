@@ -97,3 +97,17 @@ jobs:
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: website
           command: deploy --config dist/server/wrangler.json
+
+      - name: Verify production health
+        env:
+          HEALTH_URL: https://nexus-ai-trading-bot.local-sass.workers.dev/api/health
+        run: |
+          response="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 2 "$HEALTH_URL")"
+          HEALTH_RESPONSE="$response" node -e '
+            const payload = JSON.parse(process.env.HEALTH_RESPONSE);
+            if (!payload.ok || payload.version !== "3.1.0" || payload.testnetOnly !== true) {
+              console.error("Unexpected production health response:", payload);
+              process.exit(1);
+            }
+            console.log(`Verified ${payload.product} ${payload.version} production health.`);
+          '
