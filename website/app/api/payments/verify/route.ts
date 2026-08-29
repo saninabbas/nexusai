@@ -22,7 +22,8 @@ export async function POST(request: Request) {
     const body = await request.json() as { txHash?: string };
     const txHash = body.txHash?.trim().toLowerCase() || "";
     if (!/^0x[0-9a-f]{64}$/.test(txHash)) return json({ error: "Enter a valid BSC transaction hash." }, 400);
-    const used = await db().prepare("SELECT id FROM licenses WHERE transaction_hash = ?").bind(txHash).first();
+    const database = await db();
+    const used = await database.prepare("SELECT id FROM licenses WHERE transaction_hash = ?").bind(txHash).first();
     if (used) return json({ error: "This transaction has already issued a licence." }, 409);
 
     const receipt = await rpc("eth_getTransactionReceipt", [txHash]) as { status?: string; blockNumber?: string; logs?: Array<{ address: string; topics: string[]; data: string }> } | null;
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = now + 30 * 24 * 60 * 60;
     try {
-      await db().prepare("INSERT INTO licenses (id, license_hash, transaction_hash, payment_amount, device_id, status, issued_at, expires_at) VALUES (?, ?, ?, ?, NULL, 'active', ?, ?)")
+      await database.prepare("INSERT INTO licenses (id, license_hash, transaction_hash, payment_amount, device_id, status, issued_at, expires_at) VALUES (?, ?, ?, ?, NULL, 'active', ?, ?)")
         .bind(crypto.randomUUID(), licenseHash, txHash, BigInt(transfer.data).toString(), now, expiresAt).run();
     } catch {
       return json({ error: "This transaction has already issued a licence." }, 409);

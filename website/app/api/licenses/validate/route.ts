@@ -4,12 +4,13 @@ export function OPTIONS() { return new Response(null, { status: 204, headers: co
 export async function POST(request: Request) {
   try {
     const { licenseKey, deviceId } = await request.json() as { licenseKey?: string; deviceId?: string };
-    if (!licenseKey || !deviceId) return json({ valid: false, error: "Licence key and device ID are required." }, 400);
+    if (!licenseKey || licenseKey.length > 64 || !deviceId || deviceId.length > 128) return json({ valid: false, error: "Licence key and device ID are required." }, 400);
     const hash = await hashLicense(licenseKey);
-    const row = await db().prepare("SELECT device_id, status, expires_at FROM licenses WHERE license_hash = ?").bind(hash).first<{ device_id: string | null; status: string; expires_at: number }>();
+    const database = await db();
+    const row = await database.prepare("SELECT device_id, status, expires_at FROM licenses WHERE license_hash = ?").bind(hash).first<{ device_id: string | null; status: string; expires_at: number }>();
     const now = Math.floor(Date.now() / 1000);
     if (!row || row.status !== "active" || row.expires_at <= now || row.device_id !== deviceId) return json({ valid: false, error: "Licence is invalid, expired, or belongs to another device." }, 403);
-    await db().prepare("UPDATE licenses SET last_validated_at = ? WHERE license_hash = ?").bind(now, hash).run();
+    await database.prepare("UPDATE licenses SET last_validated_at = ? WHERE license_hash = ?").bind(now, hash).run();
     return json({ valid: true, expiresAt: row.expires_at });
   } catch { return json({ valid: false, error: "Licence validation failed." }, 500); }
 }

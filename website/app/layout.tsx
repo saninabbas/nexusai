@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { OFFICIAL_SITE_URL } from "../lib/product";
 export const metadata: Metadata = {
-  metadataBase:new URL("https://nexus-ai-trading-bot.xoxi-me.chatgpt.site"),
+  metadataBase:new URL(OFFICIAL_SITE_URL),
   title:{default:"Nexus Trader — Browser-Native Futures Control",template:"%s | Nexus Trader"},
   description:"A Chrome and Edge platform for Binance Futures strategy controls, automated USDT BEP20 payment verification and one-device licensing.",
   keywords:["Binance Futures bot","Chrome trading extension","BEP20 licence","trading bot dashboard","Nexus Trader"],

@@ -1,8 +1,9 @@
-import { env } from "cloudflare:workers";
+export { corsHeaders, json } from "./http";
 
-export const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
-export const json = (body: unknown, status = 200) => Response.json(body, { status, headers: corsHeaders });
-export const db = () => env.DB as D1Database;
+export async function db() {
+  const { env } = await import("cloudflare:workers");
+  return env.DB as D1Database;
+}
 export async function hashLicense(value: string) {
   const bytes = new TextEncoder().encode(value.trim().toUpperCase());
   const digest = await crypto.subtle.digest("SHA-256", bytes);

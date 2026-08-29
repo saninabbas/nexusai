@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Nexus Trader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container screen active">
+    <header class="app-header">
+      <div class="header-title"><span class="brand-mark">N</span> NEXUS TRADER</div>
+      <div class="header-actions"><div class="live-badge is-offline" id="ui-db-status"><span class="dot red"></span> LOADING</div><button class="site-link" id="ui-site-link" title="Official website">↗</button></div>
+    </header>
+    <div class="scroll-content">
+      <div class="license-strip" id="ui-license-strip">
+        <span><b>PRO LICENCE</b><small id="ui-license-copy">Activate your key to start</small></span>
+        <div class="license-actions"><button id="ui-buy-license">GET KEY</button><button id="ui-activate-license">ACTIVATE</button></div>
+      </div>
+      <div class="balance-card">
+        <div class="balance-info"><div class="label">CURRENT BALANCE</div><div class="balance-amount"><span class="currency">$</span> <span id="ui-balance">0.00</span></div><div class="balance-profit"><span id="ui-profit-pct" class="text-green">+$0.00</span><span class="label-muted">session P&amp;L</span></div></div>
+        <button class="btn-deposit" id="ui-btn-dashboard" title="Open dashboard">↗</button>
+      </div>
+      <div class="action-row">
+        <button class="action-btn btn-long" id="ui-btn-overview"><div class="box-icon icon-green">▣</div><div class="btn-texts"><span class="btn-title text-green">DASHBOARD</span><span class="btn-subtext">OPEN CONTROL CENTER</span></div></button>
+        <button class="action-btn btn-short" id="ui-btn-settings"><div class="box-icon icon-red">⚙</div><div class="btn-texts"><span class="btn-title text-red">SETTINGS</span><span class="btn-subtext">MODE &amp; RISK</span></div></button>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card win-rate-card"><div class="stat-left"><div class="stat-header">WIN RATE</div><div class="stat-main"><span class="big-num" id="ui-winrate">0</span><span class="pct">%</span></div><div class="stat-footer text-green">CLOSED TRADES</div></div><div class="progress-bar-vertical"><div class="progress-fill" id="ui-winrate-bar" style="height:0%"></div></div></div>
+        <div class="stat-card trades-card"><div class="stat-icon icon-cyan">◉</div><div class="stat-header">TOTAL TRADES</div><div class="stat-main"><span class="big-num" id="ui-total-trades">0</span></div><div class="bottom-bar"></div></div>
+      </div>
+      <div class="terminal-card"><div class="terminal-header"><div class="title"><span class="icon-cyan">›_</span> ACTION LOG</div></div><div class="terminal-logs" id="ui-terminal-logs"></div><div class="terminal-footer" id="ui-mode">PAPER · TEST BUILD 3.1</div></div>
+      <div class="bottom-stats-row"><div class="bottom-stat-card"><div class="label">SESSION P&amp;L</div><div class="val text-green" id="ui-daily-pnl">+$0.00</div><div class="sub text-muted">Tracked locally</div></div><div class="bottom-stat-card"><div class="label">MAX DRAWDOWN</div><div class="val text-red" id="ui-drawdown">0.00%</div><div class="sub text-muted">Paper / Testnet only</div></div></div>
+    </div>
+    <button class="fab-oracle" id="ui-btn-assistant" title="Open system assistant">◇</button>
+    <nav class="bottom-nav"><div class="nav-item active" id="nav-trade"><div class="icon-box">▣</div><span>TRADE</span></div><div class="nav-item" id="nav-history"><div class="icon-box">≡</div><span>HISTORY</span></div><div class="nav-item" id="nav-licence"><div class="icon-box">◇</div><span>LICENCE</span></div><div class="nav-item" id="nav-config"><div class="icon-box">⚙</div><span>CONFIG</span></div></nav>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

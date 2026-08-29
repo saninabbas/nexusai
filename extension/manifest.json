@@ -1,34 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "Nexus AI — Binance Futures AutoBot",
-  "version": "1.0.0",
-  "description": "Autonomous Binance Futures trading bot powered by AI.",
-  "permissions": [
-    "sidePanel",
-    "storage",
-    "alarms"
-  ],
+  "name": "Nexus Trader – Futures Control",
+  "version": "3.1.0",
+  "description": "Paper and Binance Futures Testnet strategy controls with device-bound Nexus licensing.",
+  "homepage_url": "https://nexus-ai-trading-bot.local-sass.workers.dev",
+  "permissions": ["storage", "alarms", "notifications", "tabs"],
   "host_permissions": [
     "https://fapi.binance.com/*",
-    "https://testnet.binancefuture.com/*",
-    "https://*.workers.dev/*",
-    "http://localhost:8787/*"
+    "https://demo-fapi.binance.com/*",
+    "https://nexus-ai-trading-bot.local-sass.workers.dev/*"
   ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "action": {
-    "default_title": "Open Nexus AI Bot",
-    "default_icon": {
-      "16": "icons/icon-16.png",
-      "48": "icons/icon-48.png",
-      "128": "icons/icon-128.png"
-    }
+    "default_title": "Nexus Trader",
+    "default_popup": "popup.html"
   },
-  "icons": {
-    "16": "icons/icon-16.png",
-    "48": "icons/icon-48.png",
-    "128": "icons/icon-128.png"
-  }
+  "options_page": "dashboard.html"
 }

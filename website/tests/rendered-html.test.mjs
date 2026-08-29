@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const developmentPreviewMeta =
-  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
-
-test("renders development preview metadata", async () => {
+test("renders finalized production landing metadata and links", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
@@ -30,9 +27,12 @@ test("renders development preview metadata", async () => {
     /^text\/html\b/i,
   );
   const html = await response.text();
-  assert.match(html, developmentPreviewMeta);
   assert.match(
     html,
     /<meta(?=[^>]*\bname=["']fameswap-verification["'])(?=[^>]*\bcontent=["']agu3xoSVO2KAFxicN1MNLA3u4ytCjd3Q["'])[^>]*>/i,
   );
+  assert.match(html, /VERSION <!-- -->3\.1\.0|VERSION 3\.1\.0/);
+  assert.match(html, /Nexus-Trader-Extension\.zip/);
+  assert.match(html, /github\.com\/saninabbas\/nexusai/);
+  assert.doesNotMatch(html, /xoxi-me\.chatgpt\.site|saninabbas\/trading-bot/);
 });
