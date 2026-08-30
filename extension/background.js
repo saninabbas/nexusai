@@ -56,6 +56,7 @@ async function initialize() {
     stats: current.stats || emptyStats(settings.paperBalance),
     botRunning: Boolean(current.botRunning),
   });
+  await chrome.storage.local.remove(["licenseKey", "liveBackendUrl", "liveAdminToken"]);
   if (current.botRunning) chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1 });
 }
 
@@ -129,23 +130,29 @@ async function activateLicense(rawKey) {
   if (!response.ok || !data.valid) {
     return { ok: false, valid: false, error: data.error || "Licence activation failed." };
   }
+  if (!data.sessionToken || !data.sessionExpiresAt) {
+    return { ok: false, valid: false, error: "Secure customer session was not issued." };
+  }
   await chrome.storage.local.set({
-    licenseKey,
     licenseExpiresAt: data.expiresAt,
+    customerSessionToken: data.sessionToken,
+    customerSessionExpiresAt: data.sessionExpiresAt,
     licenseLastValidatedAt: Date.now(),
   });
+  await chrome.storage.local.remove("licenseKey");
   await addLog("Licence activated on this device.");
   return { ok: true, valid: true, expiresAt: data.expiresAt };
 }
 
 async function validateStoredLicense(force = false) {
   const stored = await chrome.storage.local.get([
-    "licenseKey",
+    "customerSessionToken",
+    "customerSessionExpiresAt",
     "licenseExpiresAt",
     "licenseLastValidatedAt",
   ]);
   const nowSeconds = Math.floor(Date.now() / 1000);
-  if (!stored.licenseKey || Number(stored.licenseExpiresAt || 0) <= nowSeconds) {
+  if (!stored.customerSessionToken || Number(stored.customerSessionExpiresAt || 0) <= nowSeconds || Number(stored.licenseExpiresAt || 0) <= nowSeconds) {
     return { valid: false, error: "An active Nexus licence is required." };
   }
   if (!force && Date.now() - Number(stored.licenseLastValidatedAt || 0) < 6 * 60 * 60 * 1000) {
@@ -154,13 +161,18 @@ async function validateStoredLicense(force = false) {
   const deviceId = await ensureDeviceId();
   const response = await fetch(`${API_BASE_URL}/licenses/validate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ licenseKey: stored.licenseKey, deviceId }),
+    headers: {
+      Authorization: `Bearer ${stored.customerSessionToken}`,
+      "Content-Type": "application/json",
+      "X-Nexus-Device-ID": deviceId,
+    },
+    body: JSON.stringify({}),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.valid) return { valid: false, error: data.error || "Licence validation failed." };
   await chrome.storage.local.set({
     licenseExpiresAt: data.expiresAt,
+    customerSessionExpiresAt: data.sessionExpiresAt,
     licenseLastValidatedAt: Date.now(),
   });
   return { valid: true, expiresAt: data.expiresAt };
@@ -219,8 +231,8 @@ async function runCycle() {
 
   const settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...stored.savedSettings });
   if (settings.mode !== "paper" && settings.mode !== "testnet") {
-    await stopBot("Mainnet execution is disabled in this test build.");
-    return { ok: false, error: "Mainnet execution is disabled in this test build." };
+    await stopBot("Mainnet execution is disabled in the local browser engine.");
+    return { ok: false, error: "Use My Live Account for guarded server-side mainnet execution." };
   }
 
   const marketIsTestnet = settings.mode === "testnet";
@@ -391,11 +403,16 @@ async function getHealth() {
     "savedSettings",
     "apiKey",
     "apiSecret",
-    "licenseKey",
+    "customerSessionToken",
+    "customerSessionExpiresAt",
     "licenseExpiresAt",
   ]);
   const settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...stored.savedSettings });
-  const licensed = Boolean(stored.licenseKey && Number(stored.licenseExpiresAt || 0) > Date.now() / 1000);
+  const licensed = Boolean(
+    stored.customerSessionToken
+    && Number(stored.customerSessionExpiresAt || 0) > Date.now() / 1000
+    && Number(stored.licenseExpiresAt || 0) > Date.now() / 1000
+  );
   let backend = false;
   try {
     const response = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
@@ -422,9 +439,9 @@ async function systemReply(rawQuery) {
   const settings = status.settings;
   let reply = `Engine is ${status.status}. Mode: ${settings.mode.toUpperCase()}, symbol: ${settings.symbol}, strategy: ${settings.strategy}.`;
   if (query.includes("risk")) {
-    reply = `Risk is ${settings.risk}% per trade with ${settings.stopLoss}% stop loss and ${settings.takeProfit}% take profit. Mainnet is disabled in this test build.`;
+    reply = `Local ${settings.mode.toUpperCase()} risk is ${settings.risk}% per trade with ${settings.stopLoss}% stop loss and ${settings.takeProfit}% take profit. Each customer's live backend account has separate hard limits and never guarantees profit.`;
   } else if (query.includes("key") || query.includes("api")) {
-    reply = "Binance keys stay in this browser's local extension storage and are sent only to Binance Testnet. Never enable withdrawals.";
+    reply = "Testnet keys stay in this browser. A paid customer can submit one mainnet Binance key in My Live Account; it is encrypted per customer on the backend, never retained locally, and must have withdrawals disabled.";
   } else if (query.includes("license")) {
     reply = status.licenseExpiresAt
       ? `Licence expiry: ${new Date(status.licenseExpiresAt * 1000).toLocaleString()}.`

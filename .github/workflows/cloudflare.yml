@@ -105,7 +105,13 @@ jobs:
           response="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 2 "$SITE_URL/api/health")"
           HEALTH_RESPONSE="$response" node -e '
             const payload = JSON.parse(process.env.HEALTH_RESPONSE);
-            if (!payload.ok || payload.version !== "3.1.0" || payload.testnetOnly !== true || payload.downloadRequiresPayment !== true) {
+            if (
+              !payload.ok ||
+              payload.version !== "5.1.0" ||
+              payload.testnetOnly !== false ||
+              payload.liveTradingDefault !== "disabled" ||
+              payload.downloadRequiresPayment !== true
+            ) {
               console.error("Unexpected production health response:", payload);
               process.exit(1);
             }

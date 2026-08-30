@@ -32,7 +32,7 @@ async function refresh() {
   renderLicence(licensed, expiresAt);
   renderStats(status.stats || {});
   renderLogs(status.actionLogs || []);
-  document.getElementById("ui-mode").textContent = `${status.settings?.mode === "testnet" ? "BINANCE TESTNET" : "PAPER"} · TEST BUILD 3.1`;
+  document.getElementById("ui-mode").textContent = `${status.settings?.mode === "testnet" ? "BINANCE TESTNET" : "PAPER"} · LOCAL ENGINE 4.0`;
 }
 
 function setBadge(licensed, running) {

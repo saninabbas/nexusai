@@ -17,4 +17,3 @@ export function queryString(params) {
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
     .join("&");
 }
-

@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Nexus Trader – Futures Control",
+  "version": "5.1.0",
+  "description": "Nexus multi-client trading control with paper/Testnet tools and isolated 24/7 customer accounts.",
+  "homepage_url": "https://nexus-ai-trading-bot.local-sass.workers.dev",
+  "permissions": ["storage", "alarms", "notifications", "tabs"],
+  "host_permissions": [
+    "https://fapi.binance.com/*",
+    "https://demo-fapi.binance.com/*",
+    "https://nexus-ai-trading-bot.local-sass.workers.dev/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Nexus Trader",
+    "default_popup": "popup.html"
+  },
+  "options_page": "dashboard.html"
+}

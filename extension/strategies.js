@@ -93,4 +93,3 @@ export function evaluateStrategy(candlesInput, requestedStrategy = "Auto Switch"
     reason: action === "WAIT" ? "No confirmed setup" : `${strategy} produced a ${action.toLowerCase()} setup`,
   };
 }
-

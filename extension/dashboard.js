@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, OFFICIAL_SITE_URL } from "./config.js";
+import { API_BASE_URL, DEFAULT_SETTINGS, OFFICIAL_SITE_URL } from "./config.js";
 
 let botRunning = false;
 let refreshTimer;
@@ -35,6 +35,12 @@ function bindActions() {
   document.getElementById("close-pos-btn").addEventListener("click", closePosition);
   document.getElementById("activate-btn").addEventListener("click", activateLicense);
   document.getElementById("copy-payment-btn").addEventListener("click", copyPaymentAddress);
+  document.getElementById("live-connect-btn").addEventListener("click", saveAndCheckLiveBackend);
+  document.getElementById("live-disconnect-btn").addEventListener("click", disconnectLiveBackend);
+  document.getElementById("live-research-btn").addEventListener("click", refreshLiveResearch);
+  document.getElementById("live-enable-btn").addEventListener("click", () => setLiveExecution(true));
+  document.getElementById("live-disable-btn").addEventListener("click", () => setLiveExecution(false));
+  document.getElementById("live-close-btn").addEventListener("click", closeLivePosition);
   document.getElementById("chat-toggle-btn").addEventListener("click", () => document.getElementById("chat-panel").classList.toggle("hidden"));
   document.getElementById("chat-close-btn").addEventListener("click", () => document.getElementById("chat-panel").classList.add("hidden"));
   document.getElementById("chat-send-btn").addEventListener("click", sendChatMessage);
@@ -146,7 +152,7 @@ function setBotState(running) {
 }
 
 async function loadSettings() {
-  const stored = await chrome.storage.local.get(["savedSettings", "apiKey", "apiSecret"]);
+  const stored = await chrome.storage.local.get(["savedSettings", "apiKey", "apiSecret", "customerSessionToken"]);
   const settings = { ...DEFAULT_SETTINGS, ...stored.savedSettings };
   setInput("s-symbol", settings.symbol);
   setInput("s-interval", settings.interval);
@@ -159,6 +165,179 @@ async function loadSettings() {
   setInput("s-paper-balance", settings.paperBalance);
   setInput("s-api-key", stored.apiKey || "");
   setInput("s-api-secret", stored.apiSecret || "");
+  setInput("l-api-key", "");
+  setInput("l-api-secret", "");
+  if (stored.customerSessionToken) refreshLiveStatus(false);
+}
+
+async function liveConnection() {
+  const stored = await chrome.storage.local.get(["customerSessionToken", "deviceId"]);
+  return {
+    baseUrl: API_BASE_URL,
+    token: String(stored.customerSessionToken || "").trim(),
+    deviceId: String(stored.deviceId || "").trim(),
+  };
+}
+
+async function liveRequest(path, options = {}) {
+  const connection = await liveConnection();
+  if (!connection.token || !connection.deviceId) throw new Error("Activate your Nexus licence first.");
+  const response = await fetch(`${connection.baseUrl}/customer/${path}`, {
+    method: options.method || "GET",
+    headers: {
+      Authorization: `Bearer ${connection.token}`,
+      "Content-Type": "application/json",
+      "X-Nexus-Device-ID": connection.deviceId,
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || `Live backend request failed (${response.status})`);
+  return payload;
+}
+
+async function saveAndCheckLiveBackend() {
+  const apiKey = value("l-api-key").trim();
+  const apiSecret = value("l-api-secret").trim();
+  if (!apiKey || !apiSecret) return showFeedback("Enter your Binance mainnet API key and secret.", true);
+  if (!document.getElementById("l-withdraw-disabled").checked) return showFeedback("Confirm that withdrawals are disabled on this API key.", true);
+  if (!document.getElementById("l-risk-accepted").checked) return showFeedback("Confirm that you understand the real-money risk.", true);
+  try {
+    showFeedback("Verifying and encrypting your Binance connection…");
+    await liveRequest("binance/connect", {
+      method: "POST",
+      body: { apiKey, apiSecret, withdrawalDisabled: true, riskAccepted: true },
+    });
+    setInput("l-api-key", "");
+    setInput("l-api-secret", "");
+    document.getElementById("l-withdraw-disabled").checked = false;
+    document.getElementById("l-risk-accepted").checked = false;
+    await refreshLiveStatus(false);
+    showFeedback("Binance account connected. Credentials are encrypted and were not saved in this browser.");
+  } catch (error) {
+    setInput("l-api-secret", "");
+    showFeedback(error.message, true);
+  }
+}
+
+async function disconnectLiveBackend() {
+  if (!confirm("Remove the encrypted Binance connection? Live execution must already be disabled.")) return;
+  try {
+    await liveRequest("binance/disconnect", { method: "DELETE" });
+    await refreshLiveStatus(false);
+    showFeedback("Binance connection removed from the backend.");
+  } catch (error) {
+    showFeedback(error.message, true);
+  }
+}
+
+async function refreshLiveStatus(showSuccess = false) {
+  try {
+    const payload = await liveRequest("status");
+    renderLiveStatus(payload);
+    if (showSuccess) showFeedback("Your customer account is connected securely.");
+    return payload;
+  } catch (error) {
+    setText("live-ready", "OFFLINE / LOCKED");
+    if (showSuccess) showFeedback(error.message, true);
+    return null;
+  }
+}
+
+function renderLiveStatus(payload) {
+  const settings = payload.settings || {};
+  const state = payload.state || {};
+  const connection = payload.connection || {};
+  const research = payload.research;
+  setText("live-ready", connection.connected ? "CONNECTED" : "NOT CONNECTED");
+  setText("live-enabled", settings.enabled ? "LIVE ENABLED" : "DISABLED");
+  const liveCloseButton = document.getElementById("live-close-btn");
+  const hasManagedPosition = Boolean(state.hasManagedPosition);
+  liveCloseButton.classList.toggle("hidden", !hasManagedPosition);
+  setText("live-position", hasManagedPosition
+    ? `${Number(state.managedPositionAmount || 0) > 0 ? "LONG" : "SHORT"} ${Math.abs(Number(state.managedPositionAmount || 0))} BTC · ${state.hasExchangeProtection ? "PROTECTED" : "CHECKING"}`
+    : "FLAT");
+  setText("live-cycle", state.lastCycleAt ? new Date(state.lastCycleAt * 1000).toLocaleString() : "NOT RUN YET");
+  setText("live-news-risk", research ? `${String(research.riskLevel).toUpperCase()} / ${research.confidence}%` : "NO RESEARCH");
+  setInput("l-risk-bps", settings.riskBps ?? 25);
+  setInput("l-daily-loss-bps", settings.dailyLossBps ?? 100);
+  setInput("l-leverage", settings.leverage ?? 2);
+  setInput("l-max-notional", settings.maxNotionalUsdt ?? 250);
+  setText("live-key-hint", connection.apiKeyHint || "—");
+  setText("live-equity", connection.accountEquity !== null && connection.accountEquity !== undefined && Number.isFinite(Number(connection.accountEquity))
+    ? `${Number(connection.accountEquity).toFixed(2)} USDT`
+    : "—");
+  setText("live-license-expiry", payload.licenseExpiresAt ? new Date(payload.licenseExpiresAt * 1000).toLocaleString() : "—");
+  setText("live-research-summary", research?.summary || "No current Gemini Search-grounded research is available. The engine will not trade without it.");
+  const sourceBox = document.getElementById("live-research-sources");
+  sourceBox.replaceChildren();
+  (research?.sources || []).forEach((url) => {
+    const link = document.createElement("a");
+    link.href = url;
+    link.textContent = url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    sourceBox.appendChild(link);
+  });
+  const missing = payload.missingConfiguration || [];
+  const entryBlockers = payload.entryBlockers || [];
+  const backtestNote = payload.backtest
+    ? ` Walk-forward: ${payload.backtest.passed ? "PASSED" : "BLOCKED"} (${payload.backtest.tradeCount} trades, net ${payload.backtest.netR}R, PF ${payload.backtest.profitFactor}).`
+    : " Walk-forward diagnostic has not run yet; live entries remain blocked.";
+  const readinessNote = missing.length
+    ? `Server setup still required: ${missing.join(", ")}.`
+    : state.pausedReason
+      ? `Paused: ${state.pausedReason}`
+      : entryBlockers.length
+        ? `Live entry blocked: ${entryBlockers.join(", ")}.`
+        : "All live-entry guards are ready.";
+  setText("live-missing-config", readinessNote + backtestNote);
+}
+
+async function refreshLiveResearch() {
+  try {
+    showFeedback("Running your account safety check…");
+    await liveRequest("run", { method: "POST", body: {} });
+    await refreshLiveStatus(false);
+    showFeedback("Account safety check completed.");
+  } catch (error) {
+    showFeedback(error.message, true);
+  }
+}
+
+async function setLiveExecution(enabled) {
+  if (enabled && !confirm("This can place real Binance Futures orders and lose real money. Continue?")) return;
+  try {
+    const acknowledgement = value("l-ack").trim();
+    const body = enabled ? {
+      enabled: true,
+      acknowledgement,
+      riskBps: Number(value("l-risk-bps")),
+      dailyLossBps: Number(value("l-daily-loss-bps")),
+      leverage: Number(value("l-leverage")),
+      maxNotionalUsdt: Number(value("l-max-notional")),
+    } : { enabled: false };
+    await liveRequest("control", { method: "POST", body });
+    await refreshLiveStatus(false);
+    showFeedback(enabled ? "Real-money engine enabled with hard limits." : "Real-money engine disabled.");
+  } catch (error) {
+    showFeedback(error.message, true);
+  }
+}
+
+async function closeLivePosition() {
+  if (!confirm("Close the Nexus-managed BTCUSDT position at market now? This can realize a loss and will disable live execution.")) return;
+  try {
+    showFeedback("Submitting reduce-only live close and reconciling Nexus protection orders…");
+    const result = await liveRequest("position/close", {
+      method: "POST",
+      body: { confirmation: "CLOSE_MANAGED_POSITION" },
+    });
+    await refreshLiveStatus(false);
+    showFeedback(result.message || "Managed live position closed; live execution is disabled.");
+  } catch (error) {
+    showFeedback(error.message, true);
+  }
 }
 
 async function saveSettings() {
@@ -212,6 +391,7 @@ async function activateLicense() {
   renderLicence(response.expiresAt);
   showFeedback("Licence activated on this device.");
   await refreshAll(true);
+  await refreshLiveStatus(false);
 }
 
 function renderLicence(expiresAt) {

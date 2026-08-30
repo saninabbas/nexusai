@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Nexus Trader – Futures Control",
-  "version": "3.1.0",
-  "description": "Paper and Binance Futures Testnet strategy controls with device-bound Nexus licensing.",
+  "version": "5.1.0",
+  "description": "Nexus multi-client trading control with paper/Testnet tools and isolated 24/7 customer accounts.",
   "homepage_url": "https://nexus-ai-trading-bot.local-sass.workers.dev",
   "permissions": ["storage", "alarms", "notifications", "tabs"],
   "host_permissions": [

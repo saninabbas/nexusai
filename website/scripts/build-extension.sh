@@ -36,7 +36,7 @@ for file in "${files[@]}"; do
   cp "$extension_dir/$file" "$temporary_dir/$file"
 done
 
-node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(m.manifest_version!==3 || m.version!=="3.1.0" || m.background?.type!=="module") process.exit(1)' "$temporary_dir/manifest.json"
+node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(m.manifest_version!==3 || m.version!=="5.1.0" || m.background?.type!=="module") process.exit(1)' "$temporary_dir/manifest.json"
 
 (cd "$temporary_dir" && zip -q -X -9 "$temporary_output" "${files[@]}")
 mv "$temporary_output" "$output_file"

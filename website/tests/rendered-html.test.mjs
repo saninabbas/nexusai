@@ -31,9 +31,10 @@ test("renders finalized production landing metadata and links", async () => {
     html,
     /<meta(?=[^>]*\bname=["']fameswap-verification["'])(?=[^>]*\bcontent=["']agu3xoSVO2KAFxicN1MNLA3u4ytCjd3Q["'])[^>]*>/i,
   );
-  assert.match(html, /VERSION <!-- -->3\.1\.0|VERSION 3\.1\.0/);
+  assert.match(html, /VERSION <!-- -->5\.1\.0|VERSION 5\.1\.0/);
   assert.match(html, /Pay (?:&amp;|&) download/);
   assert.doesNotMatch(html, /Nexus-Trader-Extension\.zip/);
   assert.match(html, /github\.com\/saninabbas\/nexusai/);
-  assert.doesNotMatch(html, /xoxi-me\.chatgpt\.site|saninabbas\/trading-bot/);
+  assert.match(html, /nexus-ai-trading-bot\.local-sass\.workers\.dev/);
+  assert.doesNotMatch(html, /saninabbas\/trading-bot/);
 });

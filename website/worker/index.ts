@@ -1,8 +1,11 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { handleCustomerRoute, runDueTenantBatch } from "./trading/customer";
+import { handleTradingRoute } from "./trading/routes";
+import type { TradingEnv } from "./trading/types";
 
-interface Env {
+interface Env extends TradingEnv {
   ASSETS: Fetcher;
   DB: D1Database;
   IMAGES: {
@@ -19,6 +22,11 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+interface ScheduledController {
+  cron: string;
+  scheduledTime: number;
+}
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
 // To route SVGs through the optimizer (with security headers), set
@@ -28,6 +36,12 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    const customerResponse = await handleCustomerRoute(request, env);
+    if (customerResponse) return customerResponse;
+
+    const tradingResponse = await handleTradingRoute(request, env);
+    if (tradingResponse) return tradingResponse;
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
@@ -41,6 +55,10 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runDueTenantBatch(env));
   },
 };
 

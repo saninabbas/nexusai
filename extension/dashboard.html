@@ -3,18 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Nexus Trader – Control Center v3.1</title>
+  <title>Nexus Trader – Control Center v5.1</title>
   <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
   <aside class="sidebar">
     <div class="sidebar-logo">
       <span class="logo-mark">N</span>
-      <div class="logo-text"><h1>Nexus Trader</h1><p>TEST BUILD 3.1</p></div>
+      <div class="logo-text"><h1>Nexus Trader</h1><p>MULTI-CLIENT BUILD 5.1</p></div>
     </div>
     <nav class="nav-list" aria-label="Control center">
       <a class="nav-item active" data-tab="overview" href="#overview">📊 Overview</a>
       <a class="nav-item" data-tab="settings" href="#settings">⚙️ Settings</a>
+      <a class="nav-item" data-tab="live" href="#live">🛡️ My Live Account</a>
       <a class="nav-item" data-tab="history" href="#history">📋 Trade History</a>
       <a class="nav-item" data-tab="payments" href="#payments">🔑 Payment / Licence</a>
       <a class="nav-item" data-tab="guide" href="#guide">📖 Test Guide</a>
@@ -33,7 +34,7 @@
 
     <section class="tab-pane active" id="tab-overview">
       <div class="page-header"><i>📊</i><h2>Trading Command Control</h2></div>
-      <div class="test-banner"><strong>Safe test build:</strong> Paper trading and Binance Futures Testnet only. Mainnet orders are disabled.</div>
+      <div class="test-banner"><strong>Local engine:</strong> This screen remains Paper/Testnet only. Each paid customer connects and controls a separate real-money account from My Live Account.</div>
       <div class="metrics-grid">
         <div class="card-metric"><div class="m-label">Balance</div><div id="ov-balance" class="m-val">10,000.00 USDT</div></div>
         <div class="card-metric"><div class="m-label">Session P&amp;L</div><div id="ov-pnl" class="m-val">$0.00</div></div>
@@ -89,6 +90,50 @@
       </div>
     </section>
 
+    <section class="tab-pane" id="tab-live">
+      <div class="page-header"><i>🛡️</i><h2>My Live Account</h2></div>
+      <div class="live-warning"><strong>Real-money Binance Futures:</strong> This account is separate from every other customer. Trading can lose money and profit is never guaranteed. Start with the smallest amount you can afford to lose.</div>
+      <div class="section-card">
+        <div class="card-title">Connect your Binance Futures account</div>
+        <p class="helper-copy">Activate your Nexus licence first. These mainnet credentials are submitted once over HTTPS, encrypted for your customer account, and never saved in browser storage.</p>
+        <div class="input-group"><label for="l-api-key">Mainnet API Key</label><input type="password" id="l-api-key" autocomplete="off" spellcheck="false"></div>
+        <div class="input-group"><label for="l-api-secret">Mainnet Secret Key</label><input type="password" id="l-api-secret" autocomplete="off" spellcheck="false"></div>
+        <label class="secure-confirm"><input type="checkbox" id="l-withdraw-disabled"> I confirm withdrawal permission is disabled on this API key.</label>
+        <label class="secure-confirm"><input type="checkbox" id="l-risk-accepted"> I understand this connection can place real Futures orders and lose money.</label>
+        <div class="button-row"><button id="live-connect-btn" class="btn-primary" type="button">CONNECT SECURELY</button><button id="live-disconnect-btn" class="btn-secondary" type="button">REMOVE CONNECTION</button><button id="live-research-btn" class="btn-secondary" type="button">RUN SAFETY CHECK</button></div>
+      </div>
+      <div class="live-status-grid">
+        <div><span>BINANCE</span><strong id="live-ready">NOT CONNECTED</strong></div>
+        <div><span>ENGINE</span><strong id="live-enabled">DISABLED</strong></div>
+        <div><span>MANAGED POSITION</span><strong id="live-position">FLAT</strong></div>
+        <div><span>LAST CYCLE</span><strong id="live-cycle">—</strong></div>
+        <div><span>NEWS RISK</span><strong id="live-news-risk">—</strong></div>
+      </div>
+      <div class="section-card connection-summary">
+        <div><span>Connected key</span><strong id="live-key-hint">—</strong></div>
+        <div><span>Futures equity</span><strong id="live-equity">—</strong></div>
+        <div><span>Licence expires</span><strong id="live-license-expiry">—</strong></div>
+      </div>
+      <div class="section-card">
+        <div class="card-title">Hard risk limits</div>
+        <div class="form-grid">
+          <div class="input-group"><label for="l-risk-bps">Risk per trade (basis points)</label><input type="number" id="l-risk-bps" value="25" min="5" max="50" step="5"></div>
+          <div class="input-group"><label for="l-daily-loss-bps">Daily loss cap (basis points)</label><input type="number" id="l-daily-loss-bps" value="100" min="25" max="200" step="25"></div>
+          <div class="input-group"><label for="l-leverage">Maximum leverage</label><input type="number" id="l-leverage" value="2" min="1" max="3" step="1"></div>
+          <div class="input-group"><label for="l-max-notional">Maximum position notional (USDT)</label><input type="number" id="l-max-notional" value="250" min="10" max="5000" step="10"></div>
+        </div>
+        <div class="input-group"><label for="l-ack">Type I_UNDERSTAND_REAL_MONEY_RISK to enable</label><input type="text" id="l-ack" autocomplete="off"></div>
+        <div class="button-row"><button id="live-enable-btn" class="btn-danger-solid" type="button">ENABLE REAL MONEY</button><button id="live-disable-btn" class="btn-secondary" type="button">DISABLE LIVE ENGINE</button><button id="live-close-btn" class="btn-danger-solid hidden" type="button">CLOSE LIVE POSITION</button></div>
+        <p class="helper-copy">Disabling is allowed only while flat. CLOSE LIVE POSITION submits a reduce-only market exit for the Nexus-tracked BTCUSDT position, cancels only Nexus-owned protection orders, and disables the live engine.</p>
+      </div>
+      <div class="section-card">
+        <div class="card-title">Latest 24-hour Gemini research</div>
+        <p id="live-research-summary" class="helper-copy">Activate a licence and connect Binance to load the latest research and cited sources.</p>
+        <div id="live-research-sources" class="source-list"></div>
+        <div id="live-missing-config" class="missing-config"></div>
+      </div>
+    </section>
+
     <section class="tab-pane" id="tab-payments">
       <div class="page-header"><i>🔑</i><h2>Payment and Licence</h2></div>
       <div class="section-card license-grid">
@@ -129,9 +174,9 @@
       </div>
       <div class="section-card guide-copy">
         <div class="card-title">Important boundaries</div>
-        <p>⚠ Mainnet order execution is disabled in version 3.1.0.</p>
-        <p>⚠ The strategy engine uses deterministic RSI, EMA, MACD and breakout rules. It does not guarantee returns.</p>
-        <p>⚠ The extension must remain enabled for scheduled scans. Closing the dashboard does not stop the background engine.</p>
+        <p>⚠ The local browser engine remains Paper/Testnet only. Version 5.1.0 mainnet execution is server-side, licence-authenticated, and isolated per customer.</p>
+        <p>⚠ The 24/7 engine combines deterministic technical rules with Gemini Search-grounded research as a risk veto and extreme-news exit. Neither layer guarantees returns or a 90% win rate.</p>
+        <p>⚠ Closing the browser does not stop your 24/7 account. If a managed position is open, use CLOSE LIVE POSITION; when flat, disable the engine before maintenance.</p>
       </div>
     </section>
   </main>

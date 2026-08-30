@@ -17,20 +17,40 @@ const extensionDirectory = await readdir(localExtensionDirectory)
 test("extension manifest and production links are finalized", async () => {
   const manifest = JSON.parse(await readFile(path.join(extensionDirectory, "manifest.json"), "utf8"));
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "3.1.0");
+  assert.equal(manifest.version, "5.1.0");
   assert.equal(manifest.background.type, "module");
   assert.equal(manifest.homepage_url, "https://nexus-ai-trading-bot.local-sass.workers.dev");
   assert.ok(manifest.host_permissions.includes("https://demo-fapi.binance.com/*"));
   assert.ok(manifest.host_permissions.includes("https://nexus-ai-trading-bot.local-sass.workers.dev/*"));
+  assert.ok(!manifest.host_permissions.some((permission) => permission.includes("chatgpt.site")));
   assert.ok(!manifest.host_permissions.some((permission) => permission.includes("googleapis")));
 });
 
-test("extension source has no stale localhost, Sites, or Gemini endpoints", async () => {
+test("multi-client extension uses licence sessions and never stores mainnet credentials", async () => {
+  const [config, dashboard, background] = await Promise.all([
+    readFile(path.join(extensionDirectory, "config.js"), "utf8"),
+    readFile(path.join(extensionDirectory, "dashboard.js"), "utf8"),
+    readFile(path.join(extensionDirectory, "background.js"), "utf8"),
+  ]);
+  assert.match(config, /customerSessionToken/);
+  assert.doesNotMatch(config, /liveAdminToken|liveBackendUrl/);
+  assert.match(dashboard, /\/customer\/\$\{path\}/);
+  assert.match(dashboard, /"binance\/connect"/);
+  assert.match(dashboard, /"position\/close"/);
+  assert.match(dashboard, /CLOSE_MANAGED_POSITION/);
+  assert.match(dashboard, /X-Nexus-Device-ID/);
+  assert.match(dashboard, /setInput\("l-api-secret", ""\)/);
+  assert.match(background, /customerSessionExpiresAt/);
+  assert.match(background, /chrome\.storage\.local\.remove\(\["licenseKey", "liveBackendUrl", "liveAdminToken"\]\)/);
+});
+
+test("extension source has no localhost or direct Gemini API endpoints", async () => {
   const files = (await readdir(extensionDirectory)).filter((file) => /\.(?:js|json|html|css|md)$/.test(file));
   const source = (await Promise.all(files.map((file) => readFile(path.join(extensionDirectory, file), "utf8")))).join("\n");
-  assert.doesNotMatch(source, /xoxi-me\.chatgpt\.site/i);
+  assert.match(source, /nexus-ai-trading-bot\.local-sass\.workers\.dev/i);
   assert.doesNotMatch(source, /localhost(?::\d+)?/i);
-  assert.doesNotMatch(source, /gemini|generativelanguage\.googleapis/i);
+  assert.doesNotMatch(source, /generativelanguage\.googleapis/i);
+  assert.doesNotMatch(source, /GEMINI_API_KEY/i);
   assert.doesNotMatch(source, /<script[^>]+https?:|<link[^>]+https?:/i);
 });
 

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nexus Trader – Control Center v5.1</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">N</span>
+      <div class="logo-text"><h1>Nexus Trader</h1><p>MULTI-CLIENT BUILD 5.1</p></div>
+    </div>
+    <nav class="nav-list" aria-label="Control center">
+      <a class="nav-item active" data-tab="overview" href="#overview">📊 Overview</a>
+      <a class="nav-item" data-tab="settings" href="#settings">⚙️ Settings</a>
+      <a class="nav-item" data-tab="live" href="#live">🛡️ My Live Account</a>
+      <a class="nav-item" data-tab="history" href="#history">📋 Trade History</a>
+      <a class="nav-item" data-tab="payments" href="#payments">🔑 Payment / Licence</a>
+      <a class="nav-item" data-tab="guide" href="#guide">📖 Test Guide</a>
+    </nav>
+    <button class="external-site-link" id="official-site-btn" type="button">↗ Official website</button>
+    <div class="sidebar-status">
+      <div class="status-row"><span class="st-label">BACKEND</span><span id="h-api" class="st-val bad">CHECKING</span></div>
+      <div class="status-row"><span class="st-label">MODE</span><span id="h-mode" class="st-val warn">PAPER</span></div>
+      <div class="status-row"><span class="st-label">ENGINE</span><span id="h-bot" class="st-val bad">STOPPED</span></div>
+      <div class="status-row"><span class="st-label">LICENCE</span><span id="h-license" class="st-val bad">REQUIRED</span></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div id="feedback" class="feedback hidden" role="status"></div>
+
+    <section class="tab-pane active" id="tab-overview">
+      <div class="page-header"><i>📊</i><h2>Trading Command Control</h2></div>
+      <div class="test-banner"><strong>Local engine:</strong> This screen remains Paper/Testnet only. Each paid customer connects and controls a separate real-money account from My Live Account.</div>
+      <div class="metrics-grid">
+        <div class="card-metric"><div class="m-label">Balance</div><div id="ov-balance" class="m-val">10,000.00 USDT</div></div>
+        <div class="card-metric"><div class="m-label">Session P&amp;L</div><div id="ov-pnl" class="m-val">$0.00</div></div>
+        <div class="card-metric"><div class="m-label">Win Rate</div><div id="ov-winrate" class="m-val">0%</div></div>
+        <div class="card-metric"><div class="m-label">Total Trades</div><div id="ov-total" class="m-val">0</div></div>
+      </div>
+      <div class="mini-status-bar">
+        <div class="stat-item">ENGINE: <span id="hf-bot-status" class="stat-val">STOPPED</span></div>
+        <div class="stat-item">SYMBOL: <span id="ov-symbol" class="stat-val">BTCUSDT</span></div>
+        <div class="stat-item">STRATEGY: <span id="ov-active-strategy" class="stat-val">AUTO SWITCH</span></div>
+      </div>
+      <div class="section-card">
+        <div class="card-title">Live Execution Terminal</div>
+        <div id="position-panel" class="empty-position">No active position. The engine is waiting for a confirmed setup.</div>
+        <div class="button-row">
+          <button id="start-btn-dash" class="btn-primary" type="button">⚡ START ENGINE</button>
+          <button id="close-pos-btn" class="btn-danger hidden" type="button">CLOSE POSITION</button>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="card-title">Action Logs</div>
+        <div id="action-log" class="action-log"><div>[SYSTEM] Control center ready.</div></div>
+      </div>
+    </section>
+
+    <section class="tab-pane" id="tab-settings">
+      <div class="page-header"><i>⚙️</i><h2>Engine Settings</h2></div>
+      <div class="section-card">
+        <div class="card-title">Market and Strategy</div>
+        <div class="form-grid">
+          <div class="input-group"><label for="s-symbol">Futures Symbol</label><input type="text" id="s-symbol" value="BTCUSDT" maxlength="20" autocomplete="off"></div>
+          <div class="input-group"><label for="s-interval">Candle Interval</label><select id="s-interval"><option>1m</option><option>3m</option><option>5m</option><option>15m</option><option>30m</option><option>1h</option></select></div>
+          <div class="input-group"><label for="s-strategy">Strategy</label><select id="s-strategy"><option>Auto Switch</option><option>RSI + EMA</option><option>MACD</option><option>Breakout</option><option>Scalping</option></select></div>
+          <div class="input-group"><label for="s-mode">Execution Mode</label><select id="s-mode"><option value="paper">Paper Trading</option><option value="testnet">Binance Futures Testnet</option></select></div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="card-title">Risk Controls</div>
+        <div class="form-grid">
+          <div class="input-group"><label for="s-tp">Take Profit (%)</label><input type="number" id="s-tp" value="3" min="0.2" max="20" step="0.1"></div>
+          <div class="input-group"><label for="s-sl">Stop Loss (%)</label><input type="number" id="s-sl" value="1.5" min="0.2" max="10" step="0.1"></div>
+          <div class="input-group"><label for="s-leverage">Leverage (1–20×)</label><input type="number" id="s-leverage" value="5" min="1" max="20" step="1"></div>
+          <div class="input-group"><label for="s-risk">Risk per Trade (%)</label><input type="number" id="s-risk" value="1" min="0.1" max="5" step="0.1"></div>
+          <div class="input-group"><label for="s-paper-balance">Paper Balance (USDT)</label><input type="number" id="s-paper-balance" value="10000" min="100" max="1000000" step="100"></div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="card-title">Binance Testnet API</div>
+        <p class="helper-copy">Only needed for Testnet execution. Keys stay in Chrome/Edge local extension storage and are sent only to Binance Testnet. Never enable withdrawals.</p>
+        <div class="input-group"><label for="s-api-key">Testnet API Key</label><input type="password" id="s-api-key" autocomplete="off"></div>
+        <div class="input-group"><label for="s-api-secret">Testnet Secret Key</label><input type="password" id="s-api-secret" autocomplete="off"></div>
+        <button id="save-settings-btn" class="btn-primary" type="button">💾 SAVE ALL SETTINGS</button>
+      </div>
+    </section>
+
+    <section class="tab-pane" id="tab-live">
+      <div class="page-header"><i>🛡️</i><h2>My Live Account</h2></div>
+      <div class="live-warning"><strong>Real-money Binance Futures:</strong> This account is separate from every other customer. Trading can lose money and profit is never guaranteed. Start with the smallest amount you can afford to lose.</div>
+      <div class="section-card">
+        <div class="card-title">Connect your Binance Futures account</div>
+        <p class="helper-copy">Activate your Nexus licence first. These mainnet credentials are submitted once over HTTPS, encrypted for your customer account, and never saved in browser storage.</p>
+        <div class="input-group"><label for="l-api-key">Mainnet API Key</label><input type="password" id="l-api-key" autocomplete="off" spellcheck="false"></div>
+        <div class="input-group"><label for="l-api-secret">Mainnet Secret Key</label><input type="password" id="l-api-secret" autocomplete="off" spellcheck="false"></div>
+        <label class="secure-confirm"><input type="checkbox" id="l-withdraw-disabled"> I confirm withdrawal permission is disabled on this API key.</label>
+        <label class="secure-confirm"><input type="checkbox" id="l-risk-accepted"> I understand this connection can place real Futures orders and lose money.</label>
+        <div class="button-row"><button id="live-connect-btn" class="btn-primary" type="button">CONNECT SECURELY</button><button id="live-disconnect-btn" class="btn-secondary" type="button">REMOVE CONNECTION</button><button id="live-research-btn" class="btn-secondary" type="button">RUN SAFETY CHECK</button></div>
+      </div>
+      <div class="live-status-grid">
+        <div><span>BINANCE</span><strong id="live-ready">NOT CONNECTED</strong></div>
+        <div><span>ENGINE</span><strong id="live-enabled">DISABLED</strong></div>
+        <div><span>MANAGED POSITION</span><strong id="live-position">FLAT</strong></div>
+        <div><span>LAST CYCLE</span><strong id="live-cycle">—</strong></div>
+        <div><span>NEWS RISK</span><strong id="live-news-risk">—</strong></div>
+      </div>
+      <div class="section-card connection-summary">
+        <div><span>Connected key</span><strong id="live-key-hint">—</strong></div>
+        <div><span>Futures equity</span><strong id="live-equity">—</strong></div>
+        <div><span>Licence expires</span><strong id="live-license-expiry">—</strong></div>
+      </div>
+      <div class="section-card">
+        <div class="card-title">Hard risk limits</div>
+        <div class="form-grid">
+          <div class="input-group"><label for="l-risk-bps">Risk per trade (basis points)</label><input type="number" id="l-risk-bps" value="25" min="5" max="50" step="5"></div>
+          <div class="input-group"><label for="l-daily-loss-bps">Daily loss cap (basis points)</label><input type="number" id="l-daily-loss-bps" value="100" min="25" max="200" step="25"></div>
+          <div class="input-group"><label for="l-leverage">Maximum leverage</label><input type="number" id="l-leverage" value="2" min="1" max="3" step="1"></div>
+          <div class="input-group"><label for="l-max-notional">Maximum position notional (USDT)</label><input type="number" id="l-max-notional" value="250" min="10" max="5000" step="10"></div>
+        </div>
+        <div class="input-group"><label for="l-ack">Type I_UNDERSTAND_REAL_MONEY_RISK to enable</label><input type="text" id="l-ack" autocomplete="off"></div>
+        <div class="button-row"><button id="live-enable-btn" class="btn-danger-solid" type="button">ENABLE REAL MONEY</button><button id="live-disable-btn" class="btn-secondary" type="button">DISABLE LIVE ENGINE</button><button id="live-close-btn" class="btn-danger-solid hidden" type="button">CLOSE LIVE POSITION</button></div>
+        <p class="helper-copy">Disabling is allowed only while flat. CLOSE LIVE POSITION submits a reduce-only market exit for the Nexus-tracked BTCUSDT position, cancels only Nexus-owned protection orders, and disables the live engine.</p>
+      </div>
+      <div class="section-card">
+        <div class="card-title">Latest 24-hour Gemini research</div>
+        <p id="live-research-summary" class="helper-copy">Activate a licence and connect Binance to load the latest research and cited sources.</p>
+        <div id="live-research-sources" class="source-list"></div>
+        <div id="live-missing-config" class="missing-config"></div>
+      </div>
+    </section>
+
+    <section class="tab-pane" id="tab-payments">
+      <div class="page-header"><i>🔑</i><h2>Payment and Licence</h2></div>
+      <div class="section-card license-grid">
+        <div>
+          <div class="card-title">30-Day Nexus Pro</div>
+          <p class="helper-copy">Send exactly 30 USDT using BNB Smart Chain (BEP20), then verify the transaction on the official website.</p>
+          <div class="code-display"><span id="payment-address">0x9d35215728112c055c8d2472560d7e3ec58df135</span><button id="copy-payment-btn" class="btn-copy" type="button">Copy</button></div>
+          <button class="verify-payment-link" id="verify-payment-btn" type="button">VERIFY PAYMENT &amp; GET KEY ↗</button>
+        </div>
+        <div>
+          <div class="card-title">Activate on this Device</div>
+          <div class="input-group"><label for="license-key-input">Licence Key</label><input type="text" id="license-key-input" placeholder="NEXUS-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off"></div>
+          <button id="activate-btn" class="btn-primary" type="button">ACTIVATE LICENCE</button>
+          <div class="licence-result"><strong id="ls-status">NOT ACTIVE</strong><span id="ls-activated">One key activates on one browser device.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-pane" id="tab-history">
+      <div class="page-header"><i>📋</i><h2>Trade History</h2></div>
+      <div class="section-card table-wrap">
+        <table>
+          <thead><tr><th>SYMBOL</th><th>SIDE</th><th>ENTRY</th><th>EXIT</th><th>PNL</th><th>REASON</th><th>TIME</th></tr></thead>
+          <tbody id="history-body"><tr><td colspan="7">No closed trades yet.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="tab-pane" id="tab-guide">
+      <div class="page-header"><i>📖</i><h2>Test Guide</h2></div>
+      <div class="section-card guide-copy">
+        <div class="card-title">Recommended first test</div>
+        <p><strong>1.</strong> Activate a valid Nexus licence in Payment / Licence.</p>
+        <p><strong>2.</strong> Keep Execution Mode on Paper Trading. No Binance key is needed.</p>
+        <p><strong>3.</strong> Save settings, return to Overview, and start the engine.</p>
+        <p><strong>4.</strong> Review one-minute scans, position updates, stop loss and take profit in the logs.</p>
+        <p><strong>5.</strong> Only after paper checks pass, create Binance Futures Testnet keys and switch to Testnet.</p>
+      </div>
+      <div class="section-card guide-copy">
+        <div class="card-title">Important boundaries</div>
+        <p>⚠ The local browser engine remains Paper/Testnet only. Version 5.1.0 mainnet execution is server-side, licence-authenticated, and isolated per customer.</p>
+        <p>⚠ The 24/7 engine combines deterministic technical rules with Gemini Search-grounded research as a risk veto and extreme-news exit. Neither layer guarantees returns or a 90% win rate.</p>
+        <p>⚠ Closing the browser does not stop your 24/7 account. If a managed position is open, use CLOSE LIVE POSITION; when flat, disable the engine before maintenance.</p>
+      </div>
+    </section>
+  </main>
+
+  <button id="chat-toggle-btn" class="oracle-fab" type="button">◇ Assistant</button>
+  <div id="chat-panel" class="chat-panel hidden">
+    <div class="chat-header"><span>SYSTEM ASSISTANT</span><button id="chat-close-btn" type="button">×</button></div>
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-compose"><input id="chat-input" placeholder="Ask about status, risk, keys or licence"><button id="chat-send-btn" type="button">SEND</button></div>
+  </div>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-export const PRODUCT_VERSION = "3.1.0";
+export const PRODUCT_VERSION = "5.1.0";
 export const OFFICIAL_SITE_URL = "https://nexus-ai-trading-bot.local-sass.workers.dev";
 export const API_BASE_URL = `${OFFICIAL_SITE_URL}/api`;
 
@@ -21,8 +21,9 @@ export const STORAGE_KEYS = Object.freeze([
   "useTestnet",
   "savedSettings",
   "selectedStrategy",
-  "licenseKey",
   "licenseExpiresAt",
+  "customerSessionToken",
+  "customerSessionExpiresAt",
   "deviceId",
   "botRunning",
   "stats",
@@ -30,4 +31,3 @@ export const STORAGE_KEYS = Object.freeze([
   "tradeHistory",
   "actionLogs",
 ]);
-
