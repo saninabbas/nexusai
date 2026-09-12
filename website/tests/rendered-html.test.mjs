@@ -29,7 +29,7 @@ test("renders finalized production landing metadata and links", async () => {
   const html = await response.text();
   assert.match(
     html,
-    /<meta(?=[^>]*\bname=["']fameswap-verification["'])(?=[^>]*\bcontent=["']vALAwyFrXJXoPLRKPaiAF7pI9L6JyuKA["'])[^>]*>/i,
+    /<meta(?=[^>]*\bname=["']fameswap-verification["'])(?=[^>]*\bcontent=["']vALAWyFrXJXoPLRKPaiAF7pI9L6JyuKA["'])[^>]*>/i,
   );
   assert.match(html, /VERSION <!-- -->5\.1\.0|VERSION 5\.1\.0/);
   assert.match(html, /Pay (?:&amp;|&) download/);
