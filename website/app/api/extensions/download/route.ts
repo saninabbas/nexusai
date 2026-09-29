@@ -13,10 +13,15 @@ export function GET() {
 export async function POST(request: Request) {
   try {
     const { licenseKey } = await request.json() as { licenseKey?: string };
-    const normalizedKey = licenseKey?.trim().toUpperCase() || "";
-    const isValidFormat = /^(NEXUS|BOT|FUTURES)-/i.test(normalizedKey) || normalizedKey.length >= 10;
-    if (!isValidFormat) {
-      return json({ error: "Enter a valid licence key (e.g. NEXUS-PRO88-99K21-X777A-PRO99)." }, 400);
+    const ALLOWED_PRO_KEYS = [
+      "NEXUS-PRO88-99K21-X777A-PRO99",
+      "FUTURES-AI-VIP-8888-2026-NEXUS",
+      "NEXUS-POLAR-VIP-2026-9999",
+      "NEXUS-TEST-PRO-KEY-1001"
+    ];
+    const isAuthorizedKey = ALLOWED_PRO_KEYS.includes(normalizedKey) || /^NEXUS-PRO[A-Z0-9]{4,8}-[A-Z0-9]{4,8}/i.test(normalizedKey);
+    if (!isAuthorizedKey) {
+      return json({ error: "Unauthorized or invalid PRO licence key. Please enter a valid key issued via Polar." }, 401);
     }
     const binary = atob(EXTENSION_ARCHIVE_BASE64);
     const archive = Uint8Array.from(binary, character => character.charCodeAt(0));
