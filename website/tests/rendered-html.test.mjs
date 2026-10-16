@@ -37,4 +37,6 @@ test("renders finalized production landing metadata and links", async () => {
   assert.match(html, /github\.com\/saninabbas\/nexusai/);
   assert.match(html, /nexus-ai-trading-bot\.local-sass\.workers\.dev/);
   assert.doesNotMatch(html, /saninabbas\/trading-bot/);
+  assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-PJZJWX6Z8C/);
+  assert.match(html, /gtag\('config',\s*['"]G-PJZJWX6Z8C['"]\)/);
 });
