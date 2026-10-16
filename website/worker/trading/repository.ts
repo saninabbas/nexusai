@@ -390,3 +390,301 @@ export async function listDueTenants(db: D1Database, limit = 5): Promise<DueTena
     hasManagedPosition: Boolean(row.active_entry_client_id),
   }));
 }
+
+export async function ensureAdminTables(db: D1Database): Promise<void> {
+  const now = Math.floor(Date.now() / 1_000);
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS admin_audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor TEXT NOT NULL DEFAULT 'admin',
+      action TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'system',
+      details_json TEXT,
+      ip TEXT,
+      status TEXT NOT NULL DEFAULT 'success',
+      created_at INTEGER NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS trade_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id TEXT,
+      symbol TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      entry_price TEXT NOT NULL,
+      exit_price TEXT NOT NULL,
+      quantity TEXT NOT NULL,
+      realized_pnl TEXT NOT NULL,
+      pnl_percent TEXT NOT NULL,
+      fee TEXT NOT NULL DEFAULT '0',
+      strategy TEXT NOT NULL,
+      close_reason TEXT NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'live',
+      entry_time INTEGER NOT NULL,
+      exit_time INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS general_settings (
+      id INTEGER PRIMARY KEY,
+      platform_name TEXT NOT NULL DEFAULT 'Nexus Trader AI',
+      maintenance_mode INTEGER NOT NULL DEFAULT 0,
+      webhook_alert_url TEXT,
+      email_alerts_enabled INTEGER NOT NULL DEFAULT 0,
+      default_environment TEXT NOT NULL DEFAULT 'mainnet',
+      auto_restart_workers INTEGER NOT NULL DEFAULT 1,
+      updated_at INTEGER NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS polar_orders (
+      id TEXT PRIMARY KEY,
+      order_id TEXT UNIQUE,
+      email TEXT,
+      license_key TEXT,
+      created_at INTEGER
+    )`),
+    db.prepare(`INSERT OR IGNORE INTO general_settings (
+      id, platform_name, maintenance_mode, email_alerts_enabled, default_environment, auto_restart_workers, updated_at
+    ) VALUES (1, 'Nexus Trader AI', 0, 0, 'mainnet', 1, ?)`).bind(now),
+  ]);
+}
+
+export async function recordAuditLog(
+  db: D1Database,
+  input: {
+    actor?: string;
+    action: string;
+    category?: string;
+    details?: Record<string, unknown>;
+    ip?: string;
+    status?: "success" | "failure";
+  },
+): Promise<void> {
+  await ensureAdminTables(db);
+  await db.prepare(`INSERT INTO admin_audit_logs (
+    actor, action, category, details_json, ip, status, created_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(
+    (input.actor || "admin").slice(0, 100),
+    input.action.slice(0, 100),
+    (input.category || "system").slice(0, 50),
+    input.details ? JSON.stringify(input.details).slice(0, 4_000) : null,
+    (input.ip || "").slice(0, 60),
+    input.status || "success",
+    Math.floor(Date.now() / 1_000),
+  ).run().catch(() => undefined);
+}
+
+export async function listAuditLogs(
+  db: D1Database,
+  limit = 50,
+): Promise<Array<Record<string, unknown>>> {
+  await ensureAdminTables(db);
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
+  const rows = await db.prepare(
+    "SELECT id, actor, action, category, details_json, ip, status, created_at FROM admin_audit_logs ORDER BY created_at DESC LIMIT ?"
+  ).bind(safeLimit).all<Record<string, unknown>>();
+  return rows.results || [];
+}
+
+export async function recordTradeHistory(
+  db: D1Database,
+  trade: {
+    tenantId?: string | null;
+    symbol: string;
+    direction: "LONG" | "SHORT";
+    entryPrice: number | string;
+    exitPrice: number | string;
+    quantity: number | string;
+    realizedPnl: number | string;
+    pnlPercent: number | string;
+    fee?: number | string;
+    strategy: string;
+    closeReason: string;
+    mode?: "live" | "paper" | "testnet";
+    entryTime: number;
+    exitTime: number;
+  },
+): Promise<void> {
+  await ensureAdminTables(db);
+  const now = Math.floor(Date.now() / 1_000);
+  await db.prepare(`INSERT INTO trade_history (
+    tenant_id, symbol, direction, entry_price, exit_price, quantity,
+    realized_pnl, pnl_percent, fee, strategy, close_reason, mode, entry_time, exit_time, created_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+    trade.tenantId || null,
+    trade.symbol.toUpperCase(),
+    trade.direction,
+    String(trade.entryPrice),
+    String(trade.exitPrice),
+    String(trade.quantity),
+    String(trade.realizedPnl),
+    String(trade.pnlPercent),
+    String(trade.fee || "0"),
+    trade.strategy,
+    trade.closeReason,
+    trade.mode || "live",
+    trade.entryTime,
+    trade.exitTime,
+    now,
+  ).run();
+}
+
+export async function listTradeHistory(
+  db: D1Database,
+  limit = 100,
+  tenantId?: string,
+): Promise<Array<Record<string, unknown>>> {
+  await ensureAdminTables(db);
+  const safeLimit = Math.max(1, Math.min(500, Math.floor(limit)));
+  const query = tenantId
+    ? db.prepare("SELECT * FROM trade_history WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?").bind(tenantId, safeLimit)
+    : db.prepare("SELECT * FROM trade_history ORDER BY created_at DESC LIMIT ?").bind(safeLimit);
+  const rows = await query.all<Record<string, unknown>>();
+  return rows.results || [];
+}
+
+export async function getGeneralSettings(
+  db: D1Database,
+): Promise<Record<string, unknown>> {
+  await ensureAdminTables(db);
+  const row = await db.prepare("SELECT * FROM general_settings WHERE id = 1").first<Record<string, unknown>>();
+  return row || {
+    id: 1,
+    platform_name: "Nexus Trader AI",
+    maintenance_mode: 0,
+    webhook_alert_url: null,
+    email_alerts_enabled: 0,
+    default_environment: "mainnet",
+    auto_restart_workers: 1,
+    updated_at: Math.floor(Date.now() / 1_000),
+  };
+}
+
+export async function updateGeneralSettings(
+  db: D1Database,
+  patch: {
+    platformName?: string;
+    maintenanceMode?: boolean;
+    webhookAlertUrl?: string;
+    emailAlertsEnabled?: boolean;
+    defaultEnvironment?: "mainnet" | "testnet";
+    autoRestartWorkers?: boolean;
+  },
+): Promise<Record<string, unknown>> {
+  await ensureAdminTables(db);
+  const current = await getGeneralSettings(db);
+  const now = Math.floor(Date.now() / 1_000);
+  const updated = {
+    platform_name: patch.platformName !== undefined ? patch.platformName.slice(0, 100) : (current.platform_name as string),
+    maintenance_mode: patch.maintenanceMode !== undefined ? (patch.maintenanceMode ? 1 : 0) : (current.maintenance_mode as number),
+    webhook_alert_url: patch.webhookAlertUrl !== undefined ? patch.webhookAlertUrl.slice(0, 300) : (current.webhook_alert_url as string | null),
+    email_alerts_enabled: patch.emailAlertsEnabled !== undefined ? (patch.emailAlertsEnabled ? 1 : 0) : (current.email_alerts_enabled as number),
+    default_environment: patch.defaultEnvironment !== undefined ? patch.defaultEnvironment : (current.default_environment as string),
+    auto_restart_workers: patch.autoRestartWorkers !== undefined ? (patch.autoRestartWorkers ? 1 : 0) : (current.auto_restart_workers as number),
+    updated_at: now,
+  };
+  await db.prepare(`UPDATE general_settings SET
+    platform_name = ?, maintenance_mode = ?, webhook_alert_url = ?, email_alerts_enabled = ?,
+    default_environment = ?, auto_restart_workers = ?, updated_at = ? WHERE id = 1
+  `).bind(
+    updated.platform_name,
+    updated.maintenance_mode,
+    updated.webhook_alert_url,
+    updated.email_alerts_enabled,
+    updated.default_environment,
+    updated.auto_restart_workers,
+    updated.updated_at,
+  ).run();
+  return updated;
+}
+
+export async function listAllBotInstances(db: D1Database): Promise<Array<Record<string, unknown>>> {
+  await ensureTradingRows(db);
+  const [masterSettings, masterState] = await Promise.all([
+    getSettings(db),
+    getState(db),
+  ]);
+
+  const masterInstance = {
+    id: "system-master",
+    type: "master",
+    name: "Nexus Core Engine (Master)",
+    symbol: masterSettings.symbol,
+    interval: masterSettings.interval,
+    enabled: Boolean(masterSettings.enabled),
+    status: masterSettings.enabled
+      ? (masterState.paused_reason ? "paused" : "running")
+      : (masterState.paused_reason ? "paused" : "idle"),
+    pausedReason: masterState.paused_reason,
+    lastError: masterState.last_error,
+    lastCycleAt: masterState.last_cycle_at,
+    hasManagedPosition: Boolean(masterState.active_entry_client_id),
+    activePositionAmount: masterState.active_position_amount,
+    activeEntryAt: masterState.active_entry_at,
+    leverage: masterSettings.leverage,
+    riskBps: masterSettings.risk_bps,
+    dailyLossBps: masterSettings.daily_loss_bps,
+    maxNotionalUsdt: masterSettings.max_notional_usdt,
+    updatedAt: masterState.updated_at,
+  };
+
+  const tenantRows = await db.prepare(`
+    SELECT
+      s.tenant_id, s.enabled, s.symbol, s.interval, s.risk_bps, s.daily_loss_bps,
+      s.leverage, s.max_notional_usdt,
+      st.paused_reason, st.last_error, st.last_cycle_at, st.active_entry_client_id,
+      st.active_position_amount, st.active_entry_at, st.updated_at,
+      c.status AS connection_status, c.api_key_hint, c.account_equity,
+      l.status AS license_status, l.expires_at AS license_expires_at
+    FROM tenant_trading_settings s
+    LEFT JOIN tenant_trading_state st ON st.tenant_id = s.tenant_id
+    LEFT JOIN customer_binance_connections c ON c.tenant_id = s.tenant_id
+    LEFT JOIN licenses l ON l.id = s.tenant_id
+    ORDER BY s.updated_at DESC
+  `).all<Record<string, unknown>>();
+
+  const tenantInstances = (tenantRows.results || []).map((row) => ({
+    id: row.tenant_id as string,
+    type: "tenant",
+    name: `Tenant ${String(row.tenant_id).slice(0, 8)}`,
+    symbol: (row.symbol as string) || "BTCUSDT",
+    interval: (row.interval as string) || "1h",
+    enabled: Boolean(row.enabled),
+    status: row.enabled
+      ? (row.paused_reason ? "paused" : "running")
+      : (row.paused_reason ? "paused" : (row.connection_status === "active" ? "idle" : "disconnected")),
+    pausedReason: row.paused_reason,
+    lastError: row.last_error,
+    lastCycleAt: row.last_cycle_at,
+    hasManagedPosition: Boolean(row.active_entry_client_id),
+    activePositionAmount: row.active_position_amount,
+    activeEntryAt: row.active_entry_at,
+    leverage: row.leverage,
+    riskBps: row.risk_bps,
+    dailyLossBps: row.daily_loss_bps,
+    maxNotionalUsdt: row.max_notional_usdt,
+    apiKeyHint: row.api_key_hint,
+    accountEquity: row.account_equity,
+    licenseStatus: row.license_status,
+    licenseExpiresAt: row.license_expires_at,
+    updatedAt: row.updated_at,
+  }));
+
+  return [masterInstance, ...tenantInstances];
+}
+
+export async function listAllUsers(db: D1Database, limit = 100): Promise<Array<Record<string, unknown>>> {
+  const safeLimit = Math.max(1, Math.min(500, Math.floor(limit)));
+  const rows = await db.prepare(`
+    SELECT
+      l.id, l.license_hash, l.transaction_hash, l.payment_amount, l.device_id,
+      l.status, l.issued_at, l.expires_at, l.activated_at, l.last_validated_at,
+      c.status AS binance_status, c.api_key_hint, c.account_equity,
+      ts.enabled AS trading_enabled,
+      tst.active_entry_client_id IS NOT NULL AS has_position
+    FROM licenses l
+    LEFT JOIN customer_binance_connections c ON c.tenant_id = l.id
+    LEFT JOIN tenant_trading_settings ts ON ts.tenant_id = l.id
+    LEFT JOIN tenant_trading_state tst ON tst.tenant_id = l.id
+    ORDER BY l.issued_at DESC
+    LIMIT ?
+  `).bind(safeLimit).all<Record<string, unknown>>();
+
+  return rows.results || [];
+}

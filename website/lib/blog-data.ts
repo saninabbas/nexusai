@@ -93,7 +93,7 @@ To automate TradingView webhooks reliably, you must pay:
 
 Autonomous trading bots like **Nexus Trader** eliminate the intermediate relay infrastructure entirely:
 
-```
+\`\`\`
 TradingView Webhook Pipeline (Fragile & Slow):
 [TradingView Cloud] ──(HTTP POST)──> [Third-Party Relay Server] ──(API Call)──> [Binance Futures]
          ▲                                     ▲                                    ▲
@@ -103,7 +103,7 @@ Nexus Trader Autonomous Engine (Direct & Resilient):
 [Local Encrypted Browser Sandbox] ──(Direct Authenticated HMAC)──> [Binance Futures Matching Engine]
          ▲
   (Sub-150ms Speed | Zero Third-Party Servers | Local Encrypted Storage)
-```
+\`\`\`
 
 ### Key Quantitative Advantages of Autonomous AI Bots:
 1. **Direct API Execution:** Orders are signed locally using HMAC-SHA256 and sent straight to Binance's REST/WebSocket endpoints. No middleman servers can inspect, log, or drop your trade.
@@ -162,14 +162,14 @@ Perpetual futures contracts have no expiration date. To anchor the perpetual pri
 
 An automated funding rate arbitrage bot takes advantage of this imbalance:
 
-```
+\`\`\`
 Delta-Neutral Spot-Perpetual Arbitrage Setup:
 [Capital Allocation: $10,000 Total]
        ├── Buy $5,000 BTC on Spot (Delta = +1.0)
        └── Short $5,000 BTC on 1x/2x Perpetual Futures (Delta = -1.0)
 Net Market Exposure: Δ = 0 (Market Neutral)
 Revenue Stream: Collect 8-hour funding payments (typically 0.01% per 8h = ~10.9% annualized base).
-```
+\`\`\`
 
 If Bitcoin pumps to \$100,000 or dumps to \$30,000, the spot gain/loss perfectly offsets the perpetual futures gain/loss. The bot's sole source of income is the continuous stream of funding fees.
 

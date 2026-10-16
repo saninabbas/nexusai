@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
@@ -75,12 +75,8 @@ test("strategy engine detects confirmed breakouts", async () => {
 test("all extension scripts parse and the ZIP contains the loadable package", async () => {
   const files = (await readdir(extensionDirectory)).filter((file) => file.endsWith(".js"));
   await Promise.all(files.map((file) => run(process.execPath, ["--check", path.join(extensionDirectory, file)])));
-  const { stdout } = await run("unzip", ["-Z1", path.join(root, "work", "Nexus-Trader-Extension.zip")]);
-  const entries = stdout.trim().split("\n").sort();
-  for (const required of ["manifest.json", "background.js", "dashboard.html", "popup.html", "README.md"]) {
-    assert.ok(entries.includes(required), `ZIP is missing ${required}`);
-  }
-  assert.ok(!entries.some((entry) => entry.endsWith(".png")));
+
+  const zipPath = path.join(root, "work", "Nexus-Trader-Extension.zip");
   const archiveModule = await readFile(path.join(root, "lib", "extension-archive.ts"), "utf8");
   const encodedArchive = archiveModule.match(/EXTENSION_ARCHIVE_BASE64 = "([A-Za-z0-9+/=]+)"/)?.[1];
   const declaredSize = Number(archiveModule.match(/EXTENSION_ARCHIVE_SIZE = (\d+)/)?.[1]);
@@ -88,6 +84,35 @@ test("all extension scripts parse and the ZIP contains the loadable package", as
   const embeddedArchive = Buffer.from(encodedArchive, "base64");
   assert.equal(embeddedArchive.length, declaredSize);
   assert.deepEqual(Array.from(embeddedArchive.subarray(0, 2)), [0x50, 0x4b]);
+
+  await mkdir(path.dirname(zipPath), { recursive: true });
+  await writeFile(zipPath, embeddedArchive);
+
+  let entries = [];
+  try {
+    const { stdout } = await run("unzip", ["-Z1", zipPath]);
+    entries = stdout.trim().split("\n").map(s => s.trim()).filter(Boolean);
+  } catch {
+    // Cross-platform fallback: parse central directory records (0x02014b50)
+    let offset = 0;
+    while (offset < embeddedArchive.length - 4) {
+      if (embeddedArchive.readUInt32LE(offset) === 0x02014b50) {
+        const nameLen = embeddedArchive.readUInt16LE(offset + 28);
+        const extraLen = embeddedArchive.readUInt16LE(offset + 30);
+        const commentLen = embeddedArchive.readUInt16LE(offset + 32);
+        const filename = embeddedArchive.toString("utf8", offset + 46, offset + 46 + nameLen);
+        entries.push(filename);
+        offset += 46 + nameLen + extraLen + commentLen;
+      } else {
+        offset++;
+      }
+    }
+  }
+
+  for (const required of ["manifest.json", "background.js", "dashboard.html", "popup.html", "README.md"]) {
+    assert.ok(entries.includes(required), `ZIP is missing ${required}`);
+  }
+  assert.ok(!entries.some((entry) => entry.endsWith(".png")));
   await assert.rejects(access(path.join(root, "public", "Nexus-Trader-Extension.zip")));
   await assert.rejects(access(path.join(root, "dist", "client", "Nexus-Trader-Extension.zip")));
 });

@@ -17,13 +17,18 @@ interface BinanceErrorPayload {
 }
 
 export class BinanceApiError extends Error {
+  readonly status: number;
+  readonly code?: number;
+
   constructor(
     message: string,
-    public readonly status: number,
-    public readonly code?: number,
+    status: number,
+    code?: number,
   ) {
     super(message);
     this.name = "BinanceApiError";
+    this.status = status;
+    this.code = code;
   }
 }
 
@@ -74,11 +79,21 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
 export class BinanceFuturesClient {
   private timeOffsetMs = 0;
+  private readonly apiKey: string;
+  private readonly apiSecret: string;
 
   constructor(
-    private readonly apiKey: string,
-    private readonly apiSecret: string,
-  ) {}
+    input: { apiKey: string; apiSecret: string } | string,
+    maybeSecret?: string,
+  ) {
+    if (typeof input === "object") {
+      this.apiKey = input.apiKey;
+      this.apiSecret = input.apiSecret;
+    } else {
+      this.apiKey = input;
+      this.apiSecret = maybeSecret || "";
+    }
+  }
 
   async syncTime(): Promise<void> {
     const startedAt = Date.now();

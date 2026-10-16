@@ -177,3 +177,61 @@ export const tradingBacktests = sqliteTable("trading_backtests", {
 }, (table) => [
   index("trading_backtests_created_idx").on(table.createdAt),
 ]);
+
+export const adminAuditLogs = sqliteTable("admin_audit_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  actor: text("actor").notNull().default("admin"),
+  action: text("action").notNull(),
+  category: text("category").notNull().default("system"),
+  detailsJson: text("details_json"),
+  ip: text("ip"),
+  status: text("status").notNull().default("success"),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  index("admin_audit_created_idx").on(table.createdAt),
+  index("admin_audit_action_idx").on(table.action),
+]);
+
+export const tradeHistory = sqliteTable("trade_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tenantId: text("tenant_id"),
+  symbol: text("symbol").notNull(),
+  direction: text("direction").notNull(),
+  entryPrice: text("entry_price").notNull(),
+  exitPrice: text("exit_price").notNull(),
+  quantity: text("quantity").notNull(),
+  realizedPnl: text("realized_pnl").notNull(),
+  pnlPercent: text("pnl_percent").notNull(),
+  fee: text("fee").notNull().default("0"),
+  strategy: text("strategy").notNull(),
+  closeReason: text("close_reason").notNull(),
+  mode: text("mode").notNull().default("live"),
+  entryTime: integer("entry_time").notNull(),
+  exitTime: integer("exit_time").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  index("trade_history_tenant_idx").on(table.tenantId),
+  index("trade_history_created_idx").on(table.createdAt),
+  index("trade_history_symbol_idx").on(table.symbol),
+]);
+
+export const generalSettings = sqliteTable("general_settings", {
+  id: integer("id").primaryKey(),
+  platformName: text("platform_name").notNull().default("Nexus Trader AI"),
+  maintenanceMode: integer("maintenance_mode", { mode: "boolean" }).notNull().default(false),
+  webhookAlertUrl: text("webhook_alert_url"),
+  emailAlertsEnabled: integer("email_alerts_enabled", { mode: "boolean" }).notNull().default(false),
+  defaultEnvironment: text("default_environment").notNull().default("mainnet"),
+  autoRestartWorkers: integer("auto_restart_workers", { mode: "boolean" }).notNull().default(true),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const polarOrders = sqliteTable("polar_orders", {
+  id: text("id").primaryKey(),
+  orderId: text("order_id").notNull(),
+  email: text("email"),
+  licenseKey: text("license_key").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  uniqueIndex("polar_orders_order_id_unique").on(table.orderId),
+]);

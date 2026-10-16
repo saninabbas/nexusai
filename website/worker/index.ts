@@ -3,6 +3,7 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { handleCustomerRoute, runDueTenantBatch } from "./trading/customer";
 import { handleTradingRoute } from "./trading/routes";
+import { handleAdminRoute } from "./trading/admin";
 import type { TradingEnv } from "./trading/types";
 
 interface Env extends TradingEnv {
@@ -27,15 +28,12 @@ interface ScheduledController {
   scheduledTime: number;
 }
 
-// Image security config. SVG sources with .svg extension auto-skip the
-// optimization endpoint on the client side (served directly, no proxy).
-// To route SVGs through the optimizer (with security headers), set
-// dangerouslyAllowSVG: true in next.config.js and uncomment below:
-// const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
-
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    const adminResponse = await handleAdminRoute(request, env);
+    if (adminResponse) return adminResponse;
 
     const customerResponse = await handleCustomerRoute(request, env);
     if (customerResponse) return customerResponse;
