@@ -199,6 +199,14 @@ export default function AdminDashboardPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [generalSettings, setGeneralSettings] = useState<any>(null);
 
+  // Blog Automation states
+  const [blogCalendar, setBlogCalendar] = useState<any[]>([]);
+  const [blogArticles, setBlogArticles] = useState<any[]>([]);
+  const [blogSettings, setBlogSettings] = useState<any>(null);
+  const [generatingBlog, setGeneratingBlog] = useState<boolean>(false);
+  const [selectedArticlePreview, setSelectedArticlePreview] = useState<any | null>(null);
+  const [selectedCalendarFilter, setSelectedCalendarFilter] = useState<string>("all");
+
   // UI helpers
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -360,6 +368,15 @@ export default function AdminDashboardPage() {
       } else if (activeTab === "settings") {
         const data = await apiFetch("/api/admin/settings");
         if (data.ok) setGeneralSettings(data.settings);
+      } else if (activeTab === "blogs") {
+        const [calData, artData, setData] = await Promise.all([
+          apiFetch("/api/admin/blogs/calendar").catch(() => ({ ok: false })),
+          apiFetch("/api/admin/blogs/articles").catch(() => ({ ok: false })),
+          apiFetch("/api/admin/blogs/settings").catch(() => ({ ok: false })),
+        ]);
+        if (calData.ok) setBlogCalendar(calData.calendar || []);
+        if (artData.ok) setBlogArticles(artData.articles || []);
+        if (setData.ok) setBlogSettings(setData.settings);
       }
     } catch (err) {
       console.error("Tab data fetch error:", err);
@@ -479,6 +496,54 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleGenerateBlogNow = async (dayNumber?: number) => {
+    setGeneratingBlog(true);
+    try {
+      const res = await apiFetch("/api/admin/blogs/generate", {
+        method: "POST",
+        body: JSON.stringify(dayNumber !== undefined ? { dayNumber } : {}),
+      });
+      notify(res.message || "Article generated successfully", "success");
+      loadTabContent();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Blog generation failed", "error");
+    } finally {
+      setGeneratingBlog(false);
+    }
+  };
+
+  const handleApproveBlog = async (articleId: number) => {
+    setLoading(true);
+    try {
+      const res = await apiFetch("/api/admin/blogs/approve", {
+        method: "POST",
+        body: JSON.stringify({ articleId }),
+      });
+      notify(res.message || "Article approved and published", "success");
+      loadTabContent();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Approval failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleAutoPublish = async (enabled: boolean) => {
+    setLoading(true);
+    try {
+      const res = await apiFetch("/api/admin/blogs/settings", {
+        method: "POST",
+        body: JSON.stringify({ autoPublishEnabled: enabled }),
+      });
+      notify("Auto-publish setting updated", "success");
+      setBlogSettings(res.settings);
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Failed to update settings", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDownloadCsv = () => {
     const exportUrl = `/api/admin/trades?export=csv`;
     window.open(exportUrl, "_blank");
@@ -487,6 +552,8 @@ export default function AdminDashboardPage() {
   // -----------------------------------------------------------
   // Tab definitions
   // -----------------------------------------------------------
+  const pendingCount = blogArticles.filter((a) => a.status === "pending_approval").length;
+
   const navTabs = [
     { id: "overview", label: "Overview", icon: Activity, badge: null },
     { id: "engine", label: "Trading Engine", icon: Cpu, badge: overview?.engine?.status === "running" ? "LIVE" : null },
@@ -497,6 +564,7 @@ export default function AdminDashboardPage() {
     { id: "positions", label: "Positions & Orders", icon: Layers, badge: overview?.engine?.hasManagedPosition ? "1 OPEN" : null },
     { id: "trades", label: "Trade History", icon: Clock, badge: null },
     { id: "analytics", label: "Performance Analytics", icon: BarChart3, badge: null },
+    { id: "blogs", label: "Daily Blog & SEO Engine", icon: FileText, badge: pendingCount > 0 ? `${pendingCount} REVIEW` : null },
     { id: "integrations", label: "API Integrations", icon: Globe, badge: "4" },
     { id: "payments", label: "Payment Gateways", icon: CreditCard, badge: null },
     { id: "users", label: "Users & Accounts", icon: Users, badge: null },
@@ -2487,6 +2555,358 @@ export default function AdminDashboardPage() {
               )}
             </div>
           )}
+
+          {/* --------------------------------------------------------- */}
+          {/* TAB 16: DAILY BLOG & SEO ENGINE */}
+          {/* --------------------------------------------------------- */}
+          {activeTab === "blogs" && (
+            <div className="space-y-6">
+              {/* Header Card */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-lime-500 via-emerald-400 to-cyan-500" />
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2.5 bg-lime-400/10 border border-lime-400/20 rounded-xl text-lime-400">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white tracking-tight">Daily Crypto Trading Blog & SEO Engine</h2>
+                        <p className="text-xs text-zinc-400 font-mono">Automated 30-Day Curriculum · 9 Editorial Categories · Draft Approval Gate</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-zinc-300 max-w-2xl leading-relaxed mt-2">
+                      Publishes one original educational crypto trading article per day. Articles are created in{" "}
+                      <strong className="text-amber-400">Draft Mode</strong> by default and require administrator approval before appearing live on{" "}
+                      <a href="https://nexusbotai.pro/blog" target="_blank" rel="noreferrer" className="text-lime-400 underline">
+                        nexusbotai.pro/blog ↗
+                      </a>.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateBlogNow()}
+                      disabled={generatingBlog}
+                      className="px-4 py-2.5 bg-lime-400 hover:bg-lime-300 text-zinc-950 font-semibold rounded-xl text-xs flex items-center gap-2 cursor-pointer transition shadow-lg shadow-lime-400/10 disabled:opacity-50"
+                    >
+                      {generatingBlog ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Generating Article...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" /> Generate Today&apos;s Article Now
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => loadTabContent()}
+                      className="p-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition"
+                      title="Refresh"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Metrics Bar */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-zinc-800">
+                  <div className="bg-zinc-950/60 border border-zinc-850 rounded-xl p-3.5">
+                    <div className="text-[11px] text-zinc-400 font-mono uppercase mb-1">30-Day Curriculum</div>
+                    <div className="text-xl font-bold text-white flex items-baseline gap-2">
+                      <span>{blogArticles.filter((a) => a.status === "published").length}</span>
+                      <span className="text-xs text-zinc-500 font-normal">/ 30 Published</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-950/60 border border-zinc-850 rounded-xl p-3.5">
+                    <div className="text-[11px] text-zinc-400 font-mono uppercase mb-1">Pending Approval</div>
+                    <div className="text-xl font-bold text-amber-400 flex items-baseline gap-2">
+                      <span>{blogArticles.filter((a) => a.status === "pending_approval").length}</span>
+                      <span className="text-xs text-zinc-500 font-normal">Requires Review</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-950/60 border border-zinc-850 rounded-xl p-3.5">
+                    <div className="text-[11px] text-zinc-400 font-mono uppercase mb-1">Publishing Mode</div>
+                    <div className="text-sm font-semibold flex items-center gap-2">
+                      {blogSettings?.auto_publish_enabled ? (
+                        <span className="text-emerald-400 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4" /> Auto-Publish Active
+                        </span>
+                      ) : (
+                        <span className="text-amber-400 flex items-center gap-1.5">
+                          <Shield className="w-4 h-4" /> Draft Mode (Gate On)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-950/60 border border-zinc-850 rounded-xl p-3.5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] text-zinc-400 font-mono uppercase mb-0.5">Approval Gate</div>
+                      <div className="text-xs text-zinc-300">
+                        {blogSettings?.auto_publish_enabled ? "Unattended" : "Manual Review"}
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(blogSettings?.auto_publish_enabled)}
+                        onChange={(e) => handleToggleAutoPublish(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-350 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-lime-400"></div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pending Approvals Callout Banner */}
+              {blogArticles.filter((a) => a.status === "pending_approval").length > 0 && (
+                <div className="bg-amber-950/30 border border-amber-800/60 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg shrink-0 mt-0.5">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-amber-200">
+                        {blogArticles.filter((a) => a.status === "pending_approval").length} New Article(s) Pending Administrator Review
+                      </h4>
+                      <p className="text-xs text-amber-300/80 mt-1">
+                        Draft Mode has safely quarantined newly generated posts. Review the content, citations, and risk warnings before approving for live release.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Section 1: Generated Articles List */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white">Generated Blog Articles</h3>
+                    <p className="text-xs text-zinc-400">All automated and reviewed articles stored in database.</p>
+                  </div>
+                  <span className="text-xs text-zinc-500 font-mono">{blogArticles.length} Total</span>
+                </div>
+
+                {blogArticles.length === 0 ? (
+                  <div className="p-8 text-center bg-zinc-950/40 rounded-xl border border-zinc-800/80">
+                    <FileText className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                    <p className="text-xs text-zinc-400 mb-3">No dynamic articles generated yet.</p>
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateBlogNow()}
+                      disabled={generatingBlog}
+                      className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer"
+                    >
+                      Generate Today&apos;s Scheduled Article
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-zinc-800">
+                    {blogArticles.map((article) => {
+                      const isPending = article.status === "pending_approval";
+                      const isPublished = article.status === "published";
+                      return (
+                        <div key={article.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase ${
+                                  isPending
+                                    ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
+                                    : isPublished
+                                    ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20"
+                                    : "bg-zinc-800 text-zinc-400"
+                                }`}
+                              >
+                                {article.status.replace("_", " ")}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] bg-zinc-800 text-zinc-300 font-mono">
+                                {article.category}
+                              </span>
+                              {article.scheduled_date && (
+                                <span className="text-[11px] text-zinc-500 font-mono">
+                                  📅 {article.scheduled_date}
+                                </span>
+                              )}
+                              <span className="text-[11px] text-zinc-500 font-mono">
+                                ⏱ {article.read_time_minutes} min read
+                              </span>
+                            </div>
+
+                            <h4 className="text-sm font-bold text-white hover:text-lime-400 transition truncate">
+                              {article.title}
+                            </h4>
+                            <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">
+                              {article.description}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isPending && (
+                              <button
+                                type="button"
+                                onClick={() => handleApproveBlog(article.id)}
+                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition shadow-md shadow-emerald-500/10"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Approve & Publish
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedArticlePreview(article)}
+                              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> Preview
+                            </button>
+
+                            {isPublished && (
+                              <a
+                                href={`https://nexusbotai.pro/blog/${article.slug}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-3 py-1.5 bg-lime-400/10 hover:bg-lime-400/20 text-lime-400 border border-lime-400/20 rounded-lg text-xs font-semibold flex items-center gap-1"
+                              >
+                                Live URL ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: 30-Day Content Calendar */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="text-base font-bold text-white">30-Day Editorial Curriculum</h3>
+                    <p className="text-xs text-zinc-400">
+                      Pre-researched educational schedule (Oct 18, 2026 – Nov 16, 2026).
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500">Filter:</span>
+                    <select
+                      value={selectedCalendarFilter}
+                      onChange={(e) => setSelectedCalendarFilter(e.target.value)}
+                      className="px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-300 focus:outline-none focus:border-lime-400"
+                    >
+                      <option value="all">All 30 Topics</option>
+                      <option value="scheduled">Scheduled Only</option>
+                      <option value="published">Published Only</option>
+                      <option value="pending_approval">Pending Review Only</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-800 text-[11px] font-mono text-zinc-400 uppercase">
+                        <th className="py-3 px-3">Day / Date</th>
+                        <th className="py-3 px-3">Category</th>
+                        <th className="py-3 px-3">Topic Title & Intent</th>
+                        <th className="py-3 px-3">Primary Keywords</th>
+                        <th className="py-3 px-3">Status</th>
+                        <th className="py-3 px-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/60 font-sans">
+                      {blogCalendar
+                        .filter((item) => {
+                          if (selectedCalendarFilter === "all") return true;
+                          return item.status === selectedCalendarFilter;
+                        })
+                        .map((item) => {
+                          const keywords = (() => {
+                            try {
+                              return JSON.parse(item.target_keywords_json || "[]") as string[];
+                            } catch {
+                              return [];
+                            }
+                          })();
+
+                          return (
+                            <tr key={item.id} className="hover:bg-zinc-850/50 transition">
+                              <td className="py-3 px-3 font-mono text-zinc-300 whitespace-nowrap">
+                                <span className="font-bold text-white">Day {item.day_number}</span>
+                                <div className="text-[11px] text-zinc-500">{item.scheduled_date}</div>
+                              </td>
+
+                              <td className="py-3 px-3">
+                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] bg-zinc-800 text-zinc-300 font-mono">
+                                  {item.category}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-3 max-w-sm">
+                                <div className="font-semibold text-white line-clamp-1">{item.title}</div>
+                                <div className="text-[11px] text-zinc-500 font-mono mt-0.5">
+                                  Intent: <span className="text-zinc-400">{item.search_intent}</span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3 max-w-xs">
+                                <div className="flex flex-wrap gap-1">
+                                  {keywords.slice(0, 2).map((kw, i) => (
+                                    <span key={i} className="text-[10px] px-1.5 py-0.5 bg-zinc-950 border border-zinc-800 text-zinc-400 rounded">
+                                      {kw}
+                                    </span>
+                                  ))}
+                                  {keywords.length > 2 && (
+                                    <span className="text-[10px] text-zinc-500">+{keywords.length - 2}</span>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3 whitespace-nowrap">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono uppercase font-semibold ${
+                                    item.status === "published"
+                                      ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20"
+                                      : item.status === "pending_approval"
+                                      ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
+                                      : "bg-zinc-800 text-zinc-400"
+                                  }`}
+                                >
+                                  {item.status.replace("_", " ")}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-3 text-right whitespace-nowrap">
+                                {item.status === "scheduled" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGenerateBlogNow(item.day_number)}
+                                    disabled={generatingBlog}
+                                    className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-lime-400 font-semibold rounded text-[11px] cursor-pointer transition disabled:opacity-50"
+                                  >
+                                    Generate
+                                  </button>
+                                ) : (
+                                  <span className="text-[11px] text-zinc-500 font-mono">Ready</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
 
@@ -2633,6 +3053,91 @@ export default function AdminDashboardPage() {
               >
                 Close Position Now
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Blog Article Preview Modal */}
+      {selectedArticlePreview && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl max-h-[90vh] bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
+              <div className="flex items-center gap-3 min-w-0">
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase ${
+                    selectedArticlePreview.status === "pending_approval"
+                      ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
+                      : "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20"
+                  }`}
+                >
+                  {selectedArticlePreview.status.replace("_", " ")}
+                </span>
+                <span className="text-xs text-zinc-400 font-mono truncate">
+                  {selectedArticlePreview.category} · {selectedArticlePreview.scheduled_date || "Today"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedArticlePreview(null)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content Scroll */}
+            <div className="p-6 overflow-y-auto space-y-4 font-sans text-xs text-zinc-300 leading-relaxed">
+              <div>
+                <h2 className="text-lg font-bold text-white mb-1">{selectedArticlePreview.title}</h2>
+                <p className="text-zinc-400 italic text-xs mb-3">{selectedArticlePreview.description}</p>
+                <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500 pb-3 border-b border-zinc-800">
+                  <span>Slug: /blog/{selectedArticlePreview.slug}</span>
+                  <span>·</span>
+                  <span>Read time: {selectedArticlePreview.read_time_minutes} min</span>
+                </div>
+              </div>
+
+              <div className="prose prose-invert prose-xs max-w-none font-mono whitespace-pre-wrap bg-zinc-950 p-4 rounded-xl border border-zinc-850">
+                {selectedArticlePreview.content}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 border-t border-zinc-800 bg-zinc-950/60 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedArticlePreview(null)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Close Preview
+              </button>
+
+              <div className="flex items-center gap-2">
+                {selectedArticlePreview.status === "pending_approval" && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleApproveBlog(selectedArticlePreview.id);
+                      setSelectedArticlePreview(null);
+                    }}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10"
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Approve &amp; Publish Live
+                  </button>
+                )}
+                {selectedArticlePreview.status === "published" && (
+                  <a
+                    href={`https://nexusbotai.pro/blog/${selectedArticlePreview.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 bg-lime-400 hover:bg-lime-300 text-zinc-950 font-bold rounded-xl text-xs flex items-center gap-1.5"
+                  >
+                    View Live Article ↗
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>

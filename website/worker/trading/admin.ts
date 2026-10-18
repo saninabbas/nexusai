@@ -26,6 +26,15 @@ import {
   type TradingEnv,
 } from "./types.ts";
 import { decryptCustomerCredentials } from "../../lib/customer-security.ts";
+import {
+  approveBlogArticle,
+  ensureBlogTables,
+  generateArticleNow,
+  getBlogAutomationSettings,
+  listBlogArticles,
+  listBlogCalendar,
+  updateBlogSettings,
+} from "./blog-automation.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -1119,6 +1128,64 @@ export async function handleAdminRoute(request: Request, env: TradingEnv): Promi
         ip,
       });
       return json({ ok: true, message: "General settings updated", settings: updated });
+    }
+
+    // 16. Daily Blog & Content Automation
+    if (url.pathname === "/api/admin/blogs/calendar" && request.method === "GET") {
+      const calendar = await listBlogCalendar(env.DB);
+      const settings = await getBlogAutomationSettings(env.DB);
+      return json({ ok: true, calendar, settings });
+    }
+
+    if (url.pathname === "/api/admin/blogs/articles" && request.method === "GET") {
+      const status = url.searchParams.get("status") || undefined;
+      const articles = await listBlogArticles(env.DB, status);
+      return json({ ok: true, articles });
+    }
+
+    if (url.pathname === "/api/admin/blogs/settings" && request.method === "GET") {
+      const settings = await getBlogAutomationSettings(env.DB);
+      return json({ ok: true, settings });
+    }
+
+    if (url.pathname === "/api/admin/blogs/settings" && request.method === "POST") {
+      const body = await readJson(request);
+      const updated = await updateBlogSettings(env.DB, {
+        autoPublishEnabled: typeof body.autoPublishEnabled === "boolean" ? body.autoPublishEnabled : undefined,
+        publishTimeUtc: typeof body.publishTimeUtc === "string" ? body.publishTimeUtc : undefined,
+        maxDailyPosts: typeof body.maxDailyPosts === "number" ? body.maxDailyPosts : undefined,
+        modelName: typeof body.modelName === "string" ? body.modelName : undefined,
+      });
+      await recordAuditLog(env.DB, {
+        action: "BLOG_SETTINGS_UPDATE",
+        category: "content_engine",
+        details: updated,
+        ip,
+      });
+      return json({ ok: true, message: "Blog automation settings updated", settings: updated });
+    }
+
+    if (url.pathname === "/api/admin/blogs/approve" && request.method === "POST") {
+      const body = await readJson(request);
+      const articleId = Number(body.articleId);
+      if (!articleId) {
+        return json({ ok: false, error: "Valid articleId is required" }, 400);
+      }
+      const result = await approveBlogArticle(env.DB, articleId, ip);
+      if (!result.ok) {
+        return json({ ok: false, error: result.error || "Approval failed" }, 400);
+      }
+      return json({ ok: true, message: "Article approved and published", article: result.article });
+    }
+
+    if (url.pathname === "/api/admin/blogs/generate" && request.method === "POST") {
+      const body = await readJson(request).catch(() => ({}));
+      const dayNumber = body.dayNumber !== undefined ? Number(body.dayNumber) : undefined;
+      const result = await generateArticleNow(env, dayNumber, ip);
+      if (!result.ok) {
+        return json({ ok: false, error: result.error || result.message }, 500);
+      }
+      return json({ ok: true, message: result.message, article: result.article });
     }
 
     return json({ ok: false, error: "Admin endpoint not found" }, 404);

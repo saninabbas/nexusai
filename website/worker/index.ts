@@ -4,6 +4,7 @@ import handler from "vinext/server/app-router-entry";
 import { handleCustomerRoute, runDueTenantBatch } from "./trading/customer";
 import { handleTradingRoute } from "./trading/routes";
 import { handleAdminRoute } from "./trading/admin";
+import { runDailyBlogAutomation } from "./trading/blog-automation";
 import type { TradingEnv } from "./trading/types";
 
 interface Env extends TradingEnv {
@@ -56,7 +57,10 @@ const worker = {
   },
 
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runDueTenantBatch(env));
+    ctx.waitUntil(Promise.allSettled([
+      runDueTenantBatch(env),
+      runDailyBlogAutomation(env),
+    ]));
   },
 };
 

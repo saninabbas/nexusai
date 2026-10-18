@@ -235,3 +235,71 @@ export const polarOrders = sqliteTable("polar_orders", {
 }, (table) => [
   uniqueIndex("polar_orders_order_id_unique").on(table.orderId),
 ]);
+
+export const blogCalendar = sqliteTable("blog_calendar", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  dayNumber: integer("day_number").notNull(),
+  scheduledDate: text("scheduled_date").notNull(),
+  category: text("category").notNull(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull(),
+  targetKeywordsJson: text("target_keywords_json").notNull(),
+  searchIntent: text("search_intent").notNull(),
+  outlineJson: text("outline_json").notNull(),
+  status: text("status").notNull().default("scheduled"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+}, (table) => [
+  uniqueIndex("blog_calendar_slug_unique").on(table.slug),
+  index("blog_calendar_date_idx").on(table.scheduledDate),
+  index("blog_calendar_status_idx").on(table.status),
+]);
+
+export const blogArticles = sqliteTable("blog_articles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  calendarId: integer("calendar_id").references(() => blogCalendar.id),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  content: text("content").notNull(),
+  category: text("category").notNull(),
+  tagsJson: text("tags_json").notNull(),
+  authorName: text("author_name").notNull().default("Nexus Quantitative Research"),
+  authorRole: text("author_role").notNull().default("Lead Systems Architect"),
+  authorAvatar: text("author_avatar").notNull().default("/logo.png"),
+  readTimeMinutes: integer("read_time_minutes").notNull().default(8),
+  status: text("status").notNull().default("draft"),
+  scheduledDate: text("scheduled_date"),
+  publishedAt: text("published_at"),
+  updatedAt: text("updated_at"),
+  adminNotes: text("admin_notes"),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  uniqueIndex("blog_articles_slug_unique").on(table.slug),
+  index("blog_articles_status_idx").on(table.status),
+  index("blog_articles_published_idx").on(table.publishedAt),
+]);
+
+export const blogAutomationSettings = sqliteTable("blog_automation_settings", {
+  id: integer("id").primaryKey(),
+  autoPublishEnabled: integer("auto_publish_enabled", { mode: "boolean" }).notNull().default(false),
+  publishTimeUtc: text("publish_time_utc").notNull().default("06:00"),
+  maxDailyPosts: integer("max_daily_posts").notNull().default(1),
+  modelName: text("model_name").notNull().default("gemini-2.5-flash"),
+  lastRunDate: text("last_run_date"),
+  lastRunStatus: text("last_run_status").notNull().default("idle"),
+  lastError: text("last_error"),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const blogGenerationLogs = sqliteTable("blog_generation_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  runDate: text("run_date").notNull(),
+  status: text("status").notNull(),
+  slug: text("slug"),
+  detailsJson: text("details_json"),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  index("blog_gen_logs_date_idx").on(table.runDate),
+  index("blog_gen_logs_created_idx").on(table.createdAt),
+]);
