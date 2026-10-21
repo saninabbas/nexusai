@@ -1,11 +1,18 @@
 import { API_BASE_URL, DEFAULT_SETTINGS, OFFICIAL_SITE_URL, PRODUCT_VERSION } from "./config.js";
 import {
   calculateOrderQuantity,
+  cancelAllOpenOrders,
   closeMarketPosition,
   fetchAccount,
   fetchCandles,
+  fetchOpenOrders,
+  fetchPosition,
   fetchPrice,
+  getSymbolRules,
   placeMarketOrder,
+  placeStopMarketOrder,
+  placeTakeProfitMarketOrder,
+  roundPrice,
   setLeverage,
 } from "./binance.js";
 import { evaluateStrategy } from "./strategies.js";
@@ -13,6 +20,8 @@ import { evaluateStrategy } from "./strategies.js";
 const ALARM_NAME = "nexus-trading-cycle";
 const STRATEGIES = new Set(["Auto Switch", "RSI + EMA", "MACD", "Breakout", "Scalping"]);
 const INTERVALS = new Set(["1m", "3m", "5m", "15m", "30m", "1h"]);
+
+let isCycleRunning = false;
 
 const emptyStats = (balance = DEFAULT_SETTINGS.paperBalance) => ({
   balance,
@@ -43,6 +52,8 @@ async function initialize() {
     "selectedStrategy",
     "stats",
     "botRunning",
+    "apiKey",
+    "apiSecret",
   ]);
   const settings = normalizeSettings({
     ...DEFAULT_SETTINGS,
@@ -57,6 +68,10 @@ async function initialize() {
     botRunning: Boolean(current.botRunning),
   });
   await chrome.storage.local.remove(["licenseKey", "liveBackendUrl", "liveAdminToken"]);
+  await chrome.storage.local.remove("cycleLockUntil").catch(() => {});
+  if (settings.mode === "testnet" && current.apiKey && current.apiSecret) {
+    await reconcileTestnetPosition(settings.symbol, { key: current.apiKey, secret: current.apiSecret, useTestnet: true }, settings);
+  }
   if (current.botRunning) chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1 });
 }
 
@@ -96,7 +111,7 @@ function normalizeSettings(input = {}) {
     useTestnet: true,
     takeProfit: clamp(input.takeProfit, 0.2, 20, DEFAULT_SETTINGS.takeProfit),
     stopLoss: clamp(input.stopLoss, 0.2, 10, DEFAULT_SETTINGS.stopLoss),
-    leverage: Math.round(clamp(input.leverage, 1, 20, DEFAULT_SETTINGS.leverage)),
+    leverage: Math.round(clamp(input.leverage, 1, 10, Math.min(10, DEFAULT_SETTINGS.leverage))),
     risk: clamp(input.risk, 0.1, 5, DEFAULT_SETTINGS.risk),
     paperBalance: clamp(input.paperBalance, 100, 1000000, DEFAULT_SETTINGS.paperBalance),
   };
@@ -105,6 +120,85 @@ function normalizeSettings(input = {}) {
 function clamp(value, minimum, maximum, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.min(maximum, Math.max(minimum, number)) : fallback;
+}
+
+async function reconcileTestnetPosition(symbol, credentials, settings) {
+  try {
+    if (!credentials?.key || !credentials?.secret) return null;
+    const position = await fetchPosition(symbol, credentials);
+    const posAmt = Number(position?.positionAmt || 0);
+    const stored = await chrome.storage.local.get(["activeTrade", "stats"]);
+
+    if (posAmt === 0) {
+      if (stored.activeTrade && stored.activeTrade.mode === "testnet") {
+        await addLog(`Reconciled: Testnet position on ${symbol} was closed externally.`);
+        await chrome.storage.local.set({ activeTrade: null });
+        broadcast({ action: "POSITION_UPDATE", position: null });
+      }
+      return null;
+    }
+
+    const direction = posAmt > 0 ? "LONG" : "SHORT";
+    const entry = Number(position.entryPrice);
+    const quantity = Math.abs(posAmt);
+    const unRealizedPnl = Number(position.unRealizedProfit || 0);
+    const rules = await getSymbolRules(symbol, true).catch(() => ({ tickSize: 0.1 }));
+
+    const openOrders = await fetchOpenOrders(symbol, credentials).catch(() => []);
+    const slOrder = openOrders.find((o) => o.type === "STOP_MARKET" || o.origType === "STOP_MARKET");
+    const tpOrder = openOrders.find((o) => o.type === "TAKE_PROFIT_MARKET" || o.origType === "TAKE_PROFIT_MARKET");
+
+    let slOrderId = slOrder?.orderId || stored.activeTrade?.slOrderId || null;
+    let tpOrderId = tpOrder?.orderId || stored.activeTrade?.tpOrderId || null;
+    const tpPrice = tpOrder ? Number(tpOrder.stopPrice) : roundPrice(entry * (1 + (direction === "LONG" ? 1 : -1) * (settings.takeProfit / 100)), rules.tickSize);
+    const slPrice = slOrder ? Number(slOrder.stopPrice) : roundPrice(entry * (1 + (direction === "LONG" ? -1 : 1) * (settings.stopLoss / 100)), rules.tickSize);
+
+    const closeSide = direction === "LONG" ? "SELL" : "BUY";
+    if (!slOrder) {
+      try {
+        const newSl = await placeStopMarketOrder(symbol, closeSide, slPrice, credentials, quantity);
+        slOrderId = newSl.orderId;
+        await addLog(`Reconciliation: Restored missing Stop-Loss on exchange for ${symbol} @ ${slPrice}`);
+      } catch (err) {
+        await addLog(`Reconciliation warning: Could not place missing SL: ${errorMessage(err)}`);
+      }
+    }
+    if (!tpOrder) {
+      try {
+        const newTp = await placeTakeProfitMarketOrder(symbol, closeSide, tpPrice, credentials, quantity);
+        tpOrderId = newTp.orderId;
+        await addLog(`Reconciliation: Restored missing Take-Profit on exchange for ${symbol} @ ${tpPrice}`);
+      } catch (err) {
+        await addLog(`Reconciliation warning: Could not place missing TP: ${errorMessage(err)}`);
+      }
+    }
+
+    const trade = {
+      symbol,
+      direction,
+      entry,
+      quantity,
+      tp: tpPrice,
+      sl: slPrice,
+      pnl: unRealizedPnl,
+      pnlPct: entry > 0 ? (unRealizedPnl / (entry * quantity)) * 100 : 0,
+      mode: "testnet",
+      strategy: settings.strategy,
+      openedAt: stored.activeTrade?.openedAt || Date.now(),
+      orderId: stored.activeTrade?.orderId || null,
+      slOrderId,
+      tpOrderId,
+      verifiedExchangeProtection: Boolean(slOrderId && tpOrderId),
+    };
+
+    await chrome.storage.local.set({ activeTrade: trade });
+    broadcast({ action: "POSITION_UPDATE", position: trade });
+    await addLog(`Reconciled active ${direction} position on ${symbol} (${quantity} @ ${entry}). Exchange SL/TP: ${trade.verifiedExchangeProtection ? "Verified" : "Pending"}`);
+    return trade;
+  } catch (err) {
+    await addLog(`Reconciliation error for ${symbol}: ${errorMessage(err)}`);
+    return null;
+  }
 }
 
 async function ensureDeviceId() {
@@ -197,6 +291,11 @@ async function startBot(inputSettings = {}) {
     useTestnet: true,
     stats,
   });
+
+  if (settings.mode === "testnet" && current.apiKey && current.apiSecret) {
+    await reconcileTestnetPosition(settings.symbol, { key: current.apiKey, secret: current.apiSecret, useTestnet: true }, settings);
+  }
+
   chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1 });
   await addLog(`Engine started in ${settings.mode === "paper" ? "Paper" : "Binance Testnet"} mode.`);
   broadcast({ action: "BOT_STATUS", status: "running" });
@@ -213,6 +312,10 @@ async function stopBot(reason) {
 }
 
 async function runCycle() {
+  if (isCycleRunning) {
+    return { ok: true, skipped: true, reason: "Trading cycle already in progress." };
+  }
+
   const stored = await chrome.storage.local.get([
     "botRunning",
     "savedSettings",
@@ -220,42 +323,77 @@ async function runCycle() {
     "apiSecret",
     "activeTrade",
     "stats",
+    "cycleLockUntil",
   ]);
   if (!stored.botRunning) return { ok: true, skipped: true, reason: "Engine is stopped." };
 
-  const licence = await validateStoredLicense(false);
-  if (!licence.valid) {
-    await stopBot("Engine stopped: licence invalid or expired.");
-    return { ok: false, error: licence.error };
+  const now = Date.now();
+  if (stored.cycleLockUntil && stored.cycleLockUntil > now) {
+    return { ok: true, skipped: true, reason: "Trading cycle locked by previous execution." };
   }
 
-  const settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...stored.savedSettings });
-  if (settings.mode !== "paper" && settings.mode !== "testnet") {
-    await stopBot("Mainnet execution is disabled in the local browser engine.");
-    return { ok: false, error: "Use My Live Account for guarded server-side mainnet execution." };
+  isCycleRunning = true;
+  await chrome.storage.local.set({ cycleLockUntil: now + 45000 });
+
+  try {
+    const licence = await validateStoredLicense(false);
+    if (!licence.valid) {
+      await stopBot("Engine stopped: licence invalid or expired.");
+      return { ok: false, error: licence.error };
+    }
+
+    const settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...stored.savedSettings });
+    if (settings.mode !== "paper" && settings.mode !== "testnet") {
+      await stopBot("Mainnet execution is disabled in the local browser engine.");
+      return { ok: false, error: "Use My Live Account for guarded server-side mainnet execution." };
+    }
+
+    // Daily loss circuit breaker check
+    const stats = stored.stats || emptyStats(settings.paperBalance);
+    const baselineBalance = Number(stats.balance || settings.paperBalance);
+    const maxAllowedDailyLoss = baselineBalance * 0.05; // 5% max daily drawdown circuit breaker
+    if (Number(stats.dailyPnl || 0) <= -maxAllowedDailyLoss) {
+      await stopBot(`Circuit Breaker: Daily loss ($${Number(stats.dailyPnl).toFixed(2)}) reached -5% threshold. Engine halted for safety.`);
+      return { ok: false, error: "Daily loss circuit breaker triggered." };
+    }
+
+    const marketIsTestnet = settings.mode === "testnet";
+    const credentials = marketIsTestnet && stored.apiKey && stored.apiSecret
+      ? { key: stored.apiKey, secret: stored.apiSecret, useTestnet: true }
+      : null;
+
+    // Check if testnet position was closed on exchange by SL/TP
+    if (marketIsTestnet && stored.activeTrade && credentials) {
+      const exchangePos = await fetchPosition(settings.symbol, credentials).catch(() => null);
+      if (exchangePos && Number(exchangePos.positionAmt || 0) === 0) {
+        return await closeActivePosition("Exchange protective order filled", null);
+      }
+    }
+
+    const candles = await fetchCandles(settings.symbol, settings.interval, 120, marketIsTestnet);
+    const signal = evaluateStrategy(candles, settings.strategy, { requireClosed: true });
+    const price = Number(signal.price || candles.at(-1)?.close);
+    await addLog(`${settings.symbol} ${settings.interval}: ${signal.action} · ${signal.reason}`);
+
+    if (stored.activeTrade) {
+      const tracked = withPnl(stored.activeTrade, price);
+      await chrome.storage.local.set({ activeTrade: tracked });
+      broadcast({ action: "POSITION_UPDATE", position: tracked });
+      const targetHit = tracked.direction === "LONG" ? price >= tracked.tp : price <= tracked.tp;
+      const stopHit = tracked.direction === "LONG" ? price <= tracked.sl : price >= tracked.sl;
+      if (targetHit || stopHit) return await closeActivePosition(targetHit ? "Take profit" : "Stop loss", price);
+      return { ok: true, signal, position: tracked };
+    }
+
+    if (signal.action === "WAIT") return { ok: true, signal };
+    const trade = settings.mode === "paper"
+      ? await openPaperTrade(signal, settings, stats)
+      : await openTestnetTrade(signal, settings, credentials);
+    return { ok: true, signal, position: trade };
+  } finally {
+    isCycleRunning = false;
+    await chrome.storage.local.remove("cycleLockUntil").catch(() => {});
   }
-
-  const marketIsTestnet = settings.mode === "testnet";
-  const candles = await fetchCandles(settings.symbol, settings.interval, 120, marketIsTestnet);
-  const signal = evaluateStrategy(candles, settings.strategy);
-  const price = Number(signal.price || candles.at(-1)?.close);
-  await addLog(`${settings.symbol} ${settings.interval}: ${signal.action} · ${signal.reason}`);
-
-  if (stored.activeTrade) {
-    const tracked = withPnl(stored.activeTrade, price);
-    await chrome.storage.local.set({ activeTrade: tracked });
-    broadcast({ action: "POSITION_UPDATE", position: tracked });
-    const targetHit = tracked.direction === "LONG" ? price >= tracked.tp : price <= tracked.tp;
-    const stopHit = tracked.direction === "LONG" ? price <= tracked.sl : price >= tracked.sl;
-    if (targetHit || stopHit) return closeActivePosition(targetHit ? "Take profit" : "Stop loss", price);
-    return { ok: true, signal, position: tracked };
-  }
-
-  if (signal.action === "WAIT") return { ok: true, signal };
-  const trade = settings.mode === "paper"
-    ? await openPaperTrade(signal, settings, stored.stats)
-    : await openTestnetTrade(signal, settings, { key: stored.apiKey, secret: stored.apiSecret, useTestnet: true });
-  return { ok: true, signal, position: trade };
 }
 
 async function openPaperTrade(signal, settings, statsInput) {
@@ -274,27 +412,81 @@ async function openPaperTrade(signal, settings, statsInput) {
 }
 
 async function openTestnetTrade(signal, settings, credentials) {
-  if (!credentials.key || !credentials.secret) throw new Error("Testnet API credentials are missing.");
+  if (!credentials?.key || !credentials?.secret) throw new Error("Testnet API credentials are missing.");
+
+  // Check if position already exists on exchange to prevent duplicate submission
+  const existingPos = await fetchPosition(settings.symbol, credentials).catch(() => null);
+  if (existingPos && Number(existingPos.positionAmt || 0) !== 0) {
+    throw new Error(`Open position already exists on Binance (${existingPos.positionAmt} ${settings.symbol}). Trade aborted.`);
+  }
+
   const account = await fetchAccount(credentials);
-  await setLeverage(settings.symbol, settings.leverage, credentials);
+  const safeLeverage = Math.min(10, Math.max(1, settings.leverage));
+  await setLeverage(settings.symbol, safeLeverage, credentials);
+
   const quantity = await calculateOrderQuantity({
     symbol: settings.symbol,
     price: signal.price,
     balance: account.availableBalance,
     risk: settings.risk,
     stopLoss: settings.stopLoss,
-    leverage: settings.leverage,
+    leverage: safeLeverage,
     useTestnet: true,
   });
+
   const order = await placeMarketOrder(settings.symbol, signal.action, quantity, credentials);
+  if (!order || !order.orderId || order.status === "REJECTED") {
+    throw new Error(`Binance entry order rejected: ${order?.status || "Unknown"}`);
+  }
   const entry = Number(order.avgPrice || signal.price);
-  const trade = buildTrade({ ...signal, price: entry }, settings, quantity, order.orderId);
+
+  // Calculate rounded exchange stop and take profit prices
+  const rules = await getSymbolRules(settings.symbol, true).catch(() => ({ tickSize: 0.1 }));
+  const isLong = signal.action === "LONG";
+  const closeSide = isLong ? "SELL" : "BUY";
+  const rawTp = entry * (1 + (isLong ? 1 : -1) * (settings.takeProfit / 100));
+  const rawSl = entry * (1 + (isLong ? -1 : 1) * (settings.stopLoss / 100));
+  const tpPrice = roundPrice(rawTp, rules.tickSize);
+  const slPrice = roundPrice(rawSl, rules.tickSize);
+
+  // Immediately place exchange-native Stop-Loss and Take-Profit orders
+  let slOrder = null;
+  let tpOrder = null;
+  try {
+    slOrder = await placeStopMarketOrder(settings.symbol, closeSide, slPrice, credentials, quantity);
+    if (!slOrder || !slOrder.orderId) {
+      throw new Error("Exchange rejected Stop-Loss conditional order.");
+    }
+    tpOrder = await placeTakeProfitMarketOrder(settings.symbol, closeSide, tpPrice, credentials, quantity);
+    if (!tpOrder || !tpOrder.orderId) {
+      throw new Error("Exchange rejected Take-Profit conditional order.");
+    }
+  } catch (protectionErr) {
+    // EMERGENCY SAFETY: If protective orders fail or are rejected, immediately close position!
+    await addLog(`EMERGENCY: Protective order failed (${errorMessage(protectionErr)}). Immediately liquidating position for safety...`);
+    try {
+      await closeMarketPosition(settings.symbol, credentials);
+      await cancelAllOpenOrders(settings.symbol, credentials);
+    } catch (emergencyErr) {
+      await addLog(`CRITICAL: Emergency close failed: ${errorMessage(emergencyErr)}`);
+    }
+    await stopBot(`Engine stopped: Protective order failed (${errorMessage(protectionErr)}). Position closed.`);
+    throw new Error(`Protection failed: Emergency closed position. ${errorMessage(protectionErr)}`);
+  }
+
+  const trade = {
+    ...buildTrade({ ...signal, price: entry }, settings, quantity, order.orderId),
+    slOrderId: slOrder.orderId,
+    tpOrderId: tpOrder.orderId,
+    verifiedExchangeProtection: true,
+  };
+
   const current = await chrome.storage.local.get("stats");
   await chrome.storage.local.set({
     activeTrade: trade,
     stats: { ...(current.stats || emptyStats()), balance: account.balance },
   });
-  await addLog(`Testnet ${trade.direction} opened: ${trade.symbol} @ ${trade.entry}.`);
+  await addLog(`Testnet ${trade.direction} opened: ${trade.symbol} @ ${trade.entry}. Exchange SL: ${slPrice}, TP: ${tpPrice} verified.`);
   broadcast({ action: "POSITION_UPDATE", position: trade });
   return trade;
 }
@@ -320,9 +512,12 @@ function buildTrade(signal, settings, quantity, orderId = null) {
 
 function withPnl(trade, price) {
   const multiplier = trade.direction === "LONG" ? 1 : -1;
-  const pnl = (price - Number(trade.entry)) * Number(trade.quantity) * multiplier;
-  const pnlPct = ((price - Number(trade.entry)) / Number(trade.entry)) * 100 * multiplier;
-  return { ...trade, markPrice: price, pnl, pnlPct };
+  const grossPnl = (price - Number(trade.entry)) * Number(trade.quantity) * multiplier;
+  // Realistic fee calculation (0.05% taker entry + 0.05% taker exit)
+  const estFee = (Number(trade.entry) * Number(trade.quantity) * 0.0005) + (price * Number(trade.quantity) * 0.0005);
+  const pnl = grossPnl - estFee;
+  const pnlPct = trade.entry > 0 ? (pnl / (Number(trade.entry) * Number(trade.quantity))) * 100 : 0;
+  return { ...trade, markPrice: price, pnl, pnlPct, fee: estFee, grossPnl };
 }
 
 async function closeActivePosition(reason = "Manual close", suppliedPrice = null) {
@@ -338,11 +533,17 @@ async function closeActivePosition(reason = "Manual close", suppliedPrice = null
   const settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...stored.savedSettings });
   if (settings.mode === "testnet") {
     if (!stored.apiKey || !stored.apiSecret) throw new Error("Testnet API credentials are missing.");
-    await closeMarketPosition(stored.activeTrade.symbol, {
+    const credentials = {
       key: stored.apiKey,
       secret: stored.apiSecret,
       useTestnet: true,
-    });
+    };
+    await closeMarketPosition(stored.activeTrade.symbol, credentials);
+    try {
+      await cancelAllOpenOrders(stored.activeTrade.symbol, credentials);
+    } catch (cleanErr) {
+      await addLog(`Open order cleanup: ${errorMessage(cleanErr)}`);
+    }
   }
   const price = Number(suppliedPrice || await fetchPrice(stored.activeTrade.symbol, settings.mode === "testnet"));
   const closedTrade = {

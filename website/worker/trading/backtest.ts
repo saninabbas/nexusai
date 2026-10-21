@@ -113,15 +113,31 @@ export function simulateTradeExit(input: {
   return simulateExit({ ...input, policy: EXIT_POLICIES[exitProfile] });
 }
 
+export interface BacktestFeeModel {
+  makerFeeRate?: number;
+  takerFeeRate?: number;
+  slippageRate?: number;
+  fundingRatePer8h?: number;
+}
+
 export function runBacktestWithExitProfile(input: {
   symbol: string;
   interval: string;
   candles: Candle[];
+  feeModel?: BacktestFeeModel;
 }, exitProfile: ExitProfileName): BacktestResult {
   const candles = input.candles;
   const policy = EXIT_POLICIES[exitProfile];
   const returnsInR: number[] = [];
   let nextEligibleIndex = 220;
+  let totalDurationCandles = 0;
+  let totalFeeCostR = 0;
+  let totalSlippageCostR = 0;
+  let totalFundingCostR = 0;
+
+  const takerFee = input.feeModel?.takerFeeRate ?? 0.0005;
+  const slippage = input.feeModel?.slippageRate ?? 0.0001;
+  const fundingPer8h = input.feeModel?.fundingRatePer8h ?? 0.0001;
 
   for (let signalIndex = 220; signalIndex < candles.length - MAX_HOLD_CANDLES - 1; signalIndex += 1) {
     if (signalIndex < nextEligibleIndex) continue;
@@ -139,8 +155,24 @@ export function runBacktestWithExitProfile(input: {
       stopDistance,
     }, policy.name);
 
-    const estimatedCostR = entry * ROUND_TRIP_COST_RATE / stopDistance;
-    returnsInR.push(grossR - estimatedCostR);
+    const holdCandles = Math.max(1, exitIndex - entryIndex + 1);
+    totalDurationCandles += holdCandles;
+
+    const feeRate = takerFee * 2;
+    const slipRate = slippage * 2;
+    const candlesPer8h = input.interval.endsWith("h") ? Math.max(1, 8 / (parseInt(input.interval) || 1)) : 32;
+    const fundingRate = (holdCandles / candlesPer8h) * fundingPer8h;
+
+    const feeR = entry * feeRate / stopDistance;
+    const slipR = entry * slipRate / stopDistance;
+    const fundR = entry * fundingRate / stopDistance;
+
+    totalFeeCostR += feeR;
+    totalSlippageCostR += slipR;
+    totalFundingCostR += fundR;
+
+    const totalCostR = input.feeModel ? (feeR + slipR + fundR) : (entry * ROUND_TRIP_COST_RATE / stopDistance);
+    returnsInR.push(grossR - totalCostR);
     nextEligibleIndex = exitIndex + COOLDOWN_CANDLES;
   }
 
@@ -161,6 +193,27 @@ export function runBacktestWithExitProfile(input: {
   const tradeCount = returnsInR.length;
   const passed = tradeCount >= 4 && netR > 0 && profitFactor >= 1.1 && maxDrawdownR <= 5.5;
 
+  let sharpeRatio = 0;
+  if (tradeCount >= 2) {
+    const mean = netR / tradeCount;
+    const variance = returnsInR.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (tradeCount - 1);
+    const stdDev = Math.sqrt(variance);
+    sharpeRatio = stdDev > 0 ? fixed(mean / stdDev, 2) : 0;
+  }
+
+  const initialPrice = candles[220]?.close || candles[0]?.close || 1;
+  const finalPrice = candles.at(-1)?.close || initialPrice;
+  const benchmarkBuyAndHoldPct = initialPrice > 0 ? fixed(((finalPrice - initialPrice) / initialPrice) * 100, 2) : 0;
+
+  const totalEvaluatedCandles = Math.max(1, candles.length - 220);
+  const exposurePct = fixed(Math.min(100, (totalDurationCandles / totalEvaluatedCandles) * 100), 2);
+  const avgTradeDurationCandles = tradeCount > 0 ? fixed(totalDurationCandles / tradeCount, 1) : 0;
+
+  const isReliableSample = tradeCount >= 30;
+  const reliabilityWarning = isReliableSample
+    ? null
+    : `Sample size too small (${tradeCount} trades < 30 minimum) to establish statistical validity. Results may be subject to variance or overfitting.`;
+
   return {
     symbol: input.symbol,
     interval: input.interval,
@@ -178,6 +231,15 @@ export function runBacktestWithExitProfile(input: {
     passedWindows: passed ? 1 : 0,
     passed,
     createdAt: Math.floor(Date.now() / 1_000),
+    sharpeRatio,
+    exposurePct,
+    avgTradeDurationCandles,
+    totalFeeCostR: fixed(totalFeeCostR),
+    slippageCostR: fixed(totalSlippageCostR),
+    fundingCostR: fixed(totalFundingCostR),
+    benchmarkBuyAndHoldPct,
+    isReliableSample,
+    reliabilityWarning,
   };
 }
 
@@ -185,6 +247,7 @@ export function runConservativeBacktest(input: {
   symbol: string;
   interval: string;
   candles: Candle[];
+  feeModel?: BacktestFeeModel;
 }): BacktestResult {
   return runBacktestWithExitProfile(input, "baseline");
 }
@@ -193,11 +256,13 @@ function aggregateWalkForward(input: {
   symbol: string;
   interval: string;
   candleWindows: Candle[][];
+  feeModel?: BacktestFeeModel;
 }, exitProfile: ExitProfileName): BacktestResult {
   const reports = input.candleWindows.map((candles) => runBacktestWithExitProfile({
     symbol: input.symbol,
     interval: input.interval,
     candles,
+    feeModel: input.feeModel,
   }, exitProfile));
   if (reports.length === 1) return reports[0];
 
@@ -230,6 +295,25 @@ function aggregateWalkForward(input: {
     && profitFactor >= 1.1
     && maxDrawdownR <= 6;
 
+  const validSharpeReports = reports.filter((r) => r.sharpeRatio !== undefined);
+  const avgSharpe = validSharpeReports.length > 0
+    ? fixed(validSharpeReports.reduce((sum, r) => sum + (r.sharpeRatio || 0), 0) / validSharpeReports.length, 2)
+    : 0;
+
+  const totalFeeCostR = fixed(reports.reduce((sum, r) => sum + (r.totalFeeCostR || 0), 0));
+  const slippageCostR = fixed(reports.reduce((sum, r) => sum + (r.slippageCostR || 0), 0));
+  const fundingCostR = fixed(reports.reduce((sum, r) => sum + (r.fundingCostR || 0), 0));
+  const exposurePct = reports.length > 0
+    ? fixed(reports.reduce((sum, r) => sum + (r.exposurePct || 0), 0) / reports.length, 2)
+    : 0;
+  const avgTradeDurationCandles = reports.length > 0
+    ? fixed(reports.reduce((sum, r) => sum + (r.avgTradeDurationCandles || 0), 0) / reports.length, 1)
+    : 0;
+  const isReliableSample = tradeCount >= 30;
+  const reliabilityWarning = isReliableSample
+    ? null
+    : `Sample size too small (${tradeCount} trades < 30 minimum) across walk-forward windows. Results may be subject to variance or overfitting.`;
+
   return {
     symbol: input.symbol,
     interval: input.interval,
@@ -247,6 +331,14 @@ function aggregateWalkForward(input: {
     passedWindows,
     passed,
     createdAt: Math.floor(Date.now() / 1_000),
+    sharpeRatio: avgSharpe,
+    exposurePct,
+    avgTradeDurationCandles,
+    totalFeeCostR,
+    slippageCostR,
+    fundingCostR,
+    isReliableSample,
+    reliabilityWarning,
   };
 }
 

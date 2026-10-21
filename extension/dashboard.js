@@ -101,13 +101,17 @@ function renderPosition(position) {
     return;
   }
   panel.className = "position-grid";
+  const pnlNumber = Number(position.pnl || 0);
+  const pnlSign = pnlNumber >= 0 ? "+" : "";
   const values = [
     ["SYMBOL / SIDE", `${position.symbol} · ${position.direction}`],
     ["ENTRY", formatPrice(position.entry)],
     ["MARK", formatPrice(position.markPrice || position.entry)],
-    ["TAKE PROFIT", formatPrice(position.tp)],
-    ["STOP LOSS", formatPrice(position.sl)],
-    ["UNREALIZED P&L", `${Number(position.pnlPct || 0).toFixed(2)}% / $${Number(position.pnl || 0).toFixed(2)}`],
+    ["TAKE PROFIT", `${formatPrice(position.tp)}${position.tpOrderId ? ` (Order #${position.tpOrderId})` : ""}`],
+    ["STOP LOSS", `${formatPrice(position.sl)}${position.slOrderId ? ` (Order #${position.slOrderId})` : ""}`],
+    ["EXCHANGE SL/TP", position.verifiedExchangeProtection ? "✅ VERIFIED ACTIVE" : position.mode === "testnet" ? "⚠️ PENDING CONFIRMATION" : "SIMULATED"],
+    ["UNREALIZED P&L", `${Number(position.pnlPct || 0).toFixed(2)}% / ${pnlSign}$${pnlNumber.toFixed(2)}`],
+    ["ESTIMATED FEES", `$${Number(position.fee || 0).toFixed(4)}`],
   ];
   values.forEach(([label, value]) => {
     const cell = document.createElement("div");
@@ -115,6 +119,9 @@ function renderPosition(position) {
     const valueNode = document.createElement("strong");
     labelNode.textContent = label;
     valueNode.textContent = value;
+    if (label === "UNREALIZED P&L") {
+      valueNode.style.color = pnlNumber >= 0 ? "var(--accent)" : "var(--red)";
+    }
     cell.append(labelNode, valueNode);
     panel.appendChild(cell);
   });
@@ -124,7 +131,14 @@ function renderPosition(position) {
 function renderSettingsSummary(settings) {
   setText("ov-symbol", settings.symbol || DEFAULT_SETTINGS.symbol);
   setText("ov-active-strategy", String(settings.strategy || DEFAULT_SETTINGS.strategy).toUpperCase());
-  setText("h-mode", settings.mode === "testnet" ? "TESTNET" : "PAPER");
+  const modeBadge = document.getElementById("h-mode");
+  if (settings.mode === "testnet") {
+    modeBadge.textContent = "TESTNET";
+    modeBadge.className = "st-val info";
+  } else {
+    modeBadge.textContent = "PAPER";
+    modeBadge.className = "st-val warn";
+  }
 }
 
 function renderHealth(health) {

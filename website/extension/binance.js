@@ -54,27 +54,45 @@ export async function setLeverage(symbol, leverage, credentials) {
   return signedRequest("/fapi/v1/leverage", "POST", { symbol, leverage }, credentials);
 }
 
-async function symbolRules(symbol, useTestnet) {
+export async function getSymbolRules(symbol, useTestnet = false) {
   const info = await publicRequest("/fapi/v1/exchangeInfo", { symbol }, useTestnet);
   const item = info.symbols?.find((candidate) => candidate.symbol === symbol);
   if (!item) throw new Error(`Unknown Binance Futures symbol: ${symbol}`);
   const lot = item.filters.find((filter) => filter.filterType === "MARKET_LOT_SIZE") || item.filters.find((filter) => filter.filterType === "LOT_SIZE");
-  return { stepSize: Number(lot?.stepSize || 0.001), minQty: Number(lot?.minQty || 0.001) };
+  const priceFilter = item.filters.find((filter) => filter.filterType === "PRICE_FILTER");
+  const notionalFilter = item.filters.find((filter) => filter.filterType === "MIN_NOTIONAL") || item.filters.find((filter) => filter.filterType === "NOTIONAL");
+  return {
+    stepSize: Number(lot?.stepSize || 0.001),
+    minQty: Number(lot?.minQty || 0.001),
+    tickSize: Number(priceFilter?.tickSize || 0.1),
+    minNotional: Number(notionalFilter?.notional || notionalFilter?.minNotional || 5),
+  };
 }
 
-function floorToStep(value, step) {
+export function floorToStep(value, step) {
   const precision = Math.max(0, (String(step).split(".")[1] || "").replace(/0+$/, "").length);
   return Number((Math.floor(value / step) * step).toFixed(precision));
 }
 
+export function roundPrice(value, tick) {
+  const precision = Math.max(0, (String(tick).split(".")[1] || "").replace(/0+$/, "").length);
+  return Number((Math.round(value / tick) * tick).toFixed(precision));
+}
+
 export async function calculateOrderQuantity({ symbol, price, balance, risk, stopLoss, leverage, useTestnet }) {
-  const { stepSize, minQty } = await symbolRules(symbol, useTestnet);
+  const rules = await getSymbolRules(symbol, useTestnet);
+  const safeLeverage = Math.min(10, Math.max(1, Number(leverage) || 1));
   const riskBudget = Math.max(0, balance * (risk / 100));
   const stopDistance = Math.max(0.001, stopLoss / 100);
   const riskSizedNotional = riskBudget / stopDistance;
-  const marginCappedNotional = Math.min(riskSizedNotional, balance * leverage);
-  const quantity = floorToStep(marginCappedNotional / price, stepSize);
-  if (!Number.isFinite(quantity) || quantity < minQty) throw new Error("Calculated order size is below Binance minimum quantity.");
+  const marginCappedNotional = Math.min(riskSizedNotional, balance * safeLeverage);
+  const quantity = floorToStep(marginCappedNotional / price, rules.stepSize);
+  if (!Number.isFinite(quantity) || quantity < rules.minQty) {
+    throw new Error(`Calculated order size (${quantity}) is below Binance minimum quantity (${rules.minQty}).`);
+  }
+  if (quantity * price < rules.minNotional) {
+    throw new Error(`Calculated order notional ($${(quantity * price).toFixed(2)}) is below minimum notional ($${rules.minNotional}).`);
+  }
   return quantity;
 }
 
@@ -86,6 +104,54 @@ export async function placeMarketOrder(symbol, direction, quantity, credentials)
     quantity,
     newOrderRespType: "RESULT",
   }, credentials);
+}
+
+export async function placeStopMarketOrder(symbol, side, stopPrice, credentials, quantity = null) {
+  const params = {
+    symbol,
+    side,
+    type: "STOP_MARKET",
+    stopPrice,
+    workingType: "MARK_PRICE",
+    newOrderRespType: "RESULT",
+  };
+  if (quantity) {
+    params.quantity = quantity;
+    params.reduceOnly = "true";
+  } else {
+    params.closePosition = "true";
+  }
+  return signedRequest("/fapi/v1/order", "POST", params, credentials);
+}
+
+export async function placeTakeProfitMarketOrder(symbol, side, stopPrice, credentials, quantity = null) {
+  const params = {
+    symbol,
+    side,
+    type: "TAKE_PROFIT_MARKET",
+    stopPrice,
+    workingType: "MARK_PRICE",
+    newOrderRespType: "RESULT",
+  };
+  if (quantity) {
+    params.quantity = quantity;
+    params.reduceOnly = "true";
+  } else {
+    params.closePosition = "true";
+  }
+  return signedRequest("/fapi/v1/order", "POST", params, credentials);
+}
+
+export async function cancelAllOpenOrders(symbol, credentials) {
+  return signedRequest("/fapi/v1/allOpenOrders", "DELETE", { symbol }, credentials);
+}
+
+export async function fetchOpenOrders(symbol, credentials) {
+  return signedRequest("/fapi/v1/openOrders", "GET", { symbol }, credentials);
+}
+
+export async function fetchOrder(symbol, orderId, credentials) {
+  return signedRequest("/fapi/v1/order", "GET", { symbol, orderId }, credentials);
 }
 
 export async function closeMarketPosition(symbol, credentials) {

@@ -165,4 +165,13 @@ export interface BacktestResult {
   passedWindows: number;
   passed: boolean;
   createdAt: number;
+  sharpeRatio?: number;
+  exposurePct?: number;
+  avgTradeDurationCandles?: number;
+  totalFeeCostR?: number;
+  slippageCostR?: number;
+  fundingCostR?: number;
+  benchmarkBuyAndHoldPct?: number;
+  isReliableSample?: boolean;
+  reliabilityWarning?: string | null;
 }

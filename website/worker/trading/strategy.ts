@@ -1,6 +1,6 @@
 import type { Candle, TechnicalSignal } from "./types";
 
-function ema(values: number[], period: number): number[] {
+export function ema(values: number[], period: number): number[] {
   if (!values.length) return [];
   const multiplier = 2 / (period + 1);
   const output = [values[0]];
@@ -10,7 +10,7 @@ function ema(values: number[], period: number): number[] {
   return output;
 }
 
-function rsi(values: number[], period = 14): number {
+export function rsi(values: number[], period = 14): number {
   if (values.length <= period) return 50;
   let gains = 0;
   let losses = 0;
@@ -19,12 +19,14 @@ function rsi(values: number[], period = 14): number {
     gains += Math.max(0, change);
     losses += Math.max(0, -change);
   }
+  if (gains === 0 && losses === 0) return 50;
   if (losses === 0) return 100;
+  if (gains === 0) return 0;
   const relativeStrength = (gains / period) / (losses / period);
   return 100 - (100 / (1 + relativeStrength));
 }
 
-function atr(candles: Candle[], period = 14): number {
+export function atr(candles: Candle[], period = 14): number {
   if (candles.length <= period) return 0;
   const ranges: number[] = [];
   for (let index = candles.length - period; index < candles.length; index += 1) {
@@ -39,7 +41,7 @@ function atr(candles: Candle[], period = 14): number {
   return ranges.reduce((sum, value) => sum + value, 0) / ranges.length;
 }
 
-function macdHistogram(values: number[]): number[] {
+export function macdHistogram(values: number[]): number[] {
   const fast = ema(values, 12);
   const slow = ema(values, 26);
   const line = values.map((_, index) => fast[index] - slow[index]);
@@ -47,12 +49,60 @@ function macdHistogram(values: number[]): number[] {
   return line.map((value, index) => value - signal[index]);
 }
 
+export function sanitizeAndValidateCandles(
+  candles: Candle[],
+  options: { requireClosed?: boolean; currentTime?: number } = {},
+): Candle[] {
+  if (!Array.isArray(candles)) return [];
+  const now = options.currentTime ?? Date.now();
+  const requireClosed = options.requireClosed ?? true;
+  const valid: Candle[] = [];
+
+  for (const candle of candles) {
+    if (!candle) continue;
+    const { open, high, low, close, openTime, closeTime, volume } = candle;
+    if (
+      !Number.isFinite(open) || open <= 0 ||
+      !Number.isFinite(high) || high <= 0 ||
+      !Number.isFinite(low) || low <= 0 ||
+      !Number.isFinite(close) || close <= 0 ||
+      high < low || high < open || high < close || low > open || low > close
+    ) {
+      continue;
+    }
+    if (requireClosed && closeTime > now) {
+      continue;
+    }
+    valid.push({ open, high, low, close, openTime, closeTime, volume });
+  }
+
+  valid.sort((a, b) => (a.openTime || a.closeTime) - (b.openTime || b.closeTime));
+
+  const deduplicated: Candle[] = [];
+  for (const candle of valid) {
+    const last = deduplicated.at(-1);
+    if (last && (
+      (candle.openTime && last.openTime === candle.openTime) ||
+      (candle.closeTime && last.closeTime === candle.closeTime)
+    )) {
+      deduplicated[deduplicated.length - 1] = candle;
+    } else {
+      deduplicated.push(candle);
+    }
+  }
+
+  return deduplicated;
+}
+
 function fixed(value: number, digits = 6): number {
   return Number(value.toFixed(digits));
 }
 
-export function evaluateTechnicalSignal(candles: Candle[]): TechnicalSignal {
-  const completed = candles.filter((candle) => candle.closeTime <= Date.now());
+export function evaluateTechnicalSignal(
+  candles: Candle[],
+  options: { requireClosed?: boolean; currentTime?: number } = {},
+): TechnicalSignal {
+  const completed = sanitizeAndValidateCandles(candles, options);
   if (completed.length < 80) {
     return {
       action: "WAIT",
