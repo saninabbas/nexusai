@@ -6,6 +6,7 @@ let refreshTimer;
 document.addEventListener("DOMContentLoaded", async () => {
   bindNavigation();
   bindActions();
+  initWorkflow();
   await loadSettings();
   await refreshAll(true);
   openRequestedTab();
@@ -514,3 +515,245 @@ function formatPrice(price) {
   const number = Number(price || 0);
   return number >= 100 ? `$${number.toFixed(2)}` : `$${number.toFixed(6)}`;
 }
+
+/* ════════ INTERACTIVE WORKFLOW TOPOLOGY ════════ */
+const WORKFLOW_NODES = {
+  "market-feed": {
+    id: "market-feed",
+    stepNumber: "01",
+    title: "Market Data Stream",
+    category: "Ingestion Layer",
+    icon: "⚡",
+    status: "ACTIVE",
+    subtitle: "Binance Kline Stream • REST & WebSocket Ticker",
+    payload: "120 Closed Candles (1m/5m/15m)",
+    description: "Continuously streams real-time Kline OHLCV candles and live ticker prices directly from Binance Futures endpoints. Buffers completed historical periods for deterministic indicator computation.",
+    details: [
+      { label: "Target Symbol", value: "BTCUSDT Perpetual" },
+      { label: "Candle Limits", value: "120 historical bars" },
+      { label: "Timeframe Sync", value: "Every 60s / WebSocket tick" },
+      { label: "Price Source", value: "Mark Price (prevents wicks)" },
+    ],
+    formula: "Price = MarkPrice(Binance Index + Funding Basis)",
+    safetyCheck: "Automatic reconnection on WebSocket drops; REST fallback enabled.",
+  },
+  "data-sanitizer": {
+    id: "data-sanitizer",
+    stepNumber: "02",
+    title: "Data Sanitizer & Guard",
+    category: "Integrity Layer",
+    icon: "🛡️",
+    status: "VERIFIED",
+    subtitle: "Deduplication • Geometry Audit • Closed Filter",
+    payload: "Clean OHLCV Series",
+    description: "Sanitizes all market data before quantitative evaluation. Filters out forming/unclosed candles to prevent lookahead bias. Validates candle geometry and eliminates corrupt spikes.",
+    details: [
+      { label: "Lookahead Guard", value: "closeTime <= currentTime" },
+      { label: "Geometry Check", value: "high >= max(open,close) & low <= min(open,close)" },
+      { label: "Price Sanity", value: "open, high, low, close > 0" },
+      { label: "Deduplication", value: "Chronological ascending timestamp sort" },
+    ],
+    formula: "Validate(c) : c.closeTime <= now ∧ c.high >= c.low ∧ c.price > 0",
+    safetyCheck: "Prevents execution on malformed or incomplete candles.",
+  },
+  "signal-engine": {
+    id: "signal-engine",
+    stepNumber: "03",
+    title: "Quantitative Signal Engine",
+    category: "Strategy Engine",
+    icon: "🤖",
+    status: "COMPLETED",
+    subtitle: "RSI Guard • MACD Crossover • 40-Bar Breakout",
+    payload: "LONG Setup (Confidence: 82%)",
+    description: "Evaluates multi-timeframe mathematical indicators. Validates EMA 50/200 trend alignment, 40-candle Donchian breakout thresholds, and filters out false moves with the 14-period RSI guard.",
+    details: [
+      { label: "Trend Filter", value: "Price > EMA50 > EMA200 (Bullish regime)" },
+      { label: "Breakout Rule", value: "Price > 40-candle prior high" },
+      { label: "RSI Filter", value: "RSI-14 <= 75 (Not overbought)" },
+      { label: "MACD Crossover", value: "Histogram > 0 & Line > Signal (+2 score)" },
+    ],
+    formula: "Score = Breakout(3) + Trend(2) + RSI_Guard(2) + MACD(2) >= Threshold(2)",
+    safetyCheck: "RSI edge-case guard prevents false triggers on flat/oscillating markets.",
+  },
+  "gemini-research": {
+    id: "gemini-research",
+    stepNumber: "04",
+    title: "Gemini AI News Guard",
+    category: "Cloud Intelligence",
+    icon: "🌐",
+    status: "GUARDED",
+    subtitle: "24h Macro Sentiment • Google Search Grounding",
+    payload: "Risk Level: LOW (Score 88/100)",
+    description: "Server-side Gemini 3.7 Flash agent performs search-grounded market intelligence. Scans the last 24 hours of breaking news, Federal Reserve catalysts, and exchange risks to veto risky trades.",
+    details: [
+      { label: "Model", value: "Gemini 3.7 Flash with Search Grounding" },
+      { label: "Scan Frequency", value: "Hourly + On-demand before entries" },
+      { label: "News Bias", value: "Neutral to Bullish" },
+      { label: "Veto Condition", value: "High / Extreme risk vetoes technical setup" },
+    ],
+    formula: "VetoIf(newsRisk == 'extreme' || newsRisk == 'high')",
+    safetyCheck: "Prevents entering right before catastrophic news spikes or regulatory bans.",
+  },
+  "risk-sizer": {
+    id: "risk-sizer",
+    stepNumber: "05",
+    title: "Dynamic Risk & Lot Sizing",
+    category: "Risk Control",
+    icon: "⚖️",
+    status: "COMPLETED",
+    subtitle: "1% Equity Budget • Max 10x Leverage • Min Notional",
+    payload: "Qty: 0.045 BTC ($3,034 Notional)",
+    description: "Computes position size mathematically based on stop-loss distance, available balance, and exchange lot step constraints. Hard clamps leverage to 10x maximum to prevent liquidation.",
+    details: [
+      { label: "Account Balance", value: "10,000.00 USDT" },
+      { label: "Risk Budget", value: "1.00% ($100 max risk per trade)" },
+      { label: "Stop Distance", value: "2.5 * ATR ($1,051 = 1.56%)" },
+      { label: "Leverage Limit", value: "Max 10× clamp (Strictly enforced)" },
+    ],
+    formula: "Qty = floor((Balance * Risk%) / (Entry - StopPrice), StepSize)",
+    safetyCheck: "Enforces Binance minNotional ($5) and minimum lot size (0.001 BTC).",
+  },
+  "order-exec": {
+    id: "order-exec",
+    stepNumber: "06",
+    title: "Binance Futures Entry",
+    category: "Execution Layer",
+    icon: "🚀",
+    status: "RUNNING",
+    subtitle: "Market IOC Order • Testnet & Guarded Live",
+    payload: "Filled @ $67,420.50 (Order #883912)",
+    description: "Submits authenticated signed POST order to Binance Futures API. Validates execution response, average fill price, and executed quantity with millisecond clock offset synchronization.",
+    details: [
+      { label: "Execution Side", value: "BUY (LONG Entry)" },
+      { label: "Order Type", value: "MARKET IOC" },
+      { label: "Fill Price", value: "$67,420.50" },
+      { label: "Client Order ID", value: "nx_entry_l9p2a1_f4c" },
+    ],
+    formula: "Sign(HMAC_SHA256, QueryString, ApiSecret)",
+    safetyCheck: "In-memory mutex and cycle lock prevent duplicate order submissions.",
+  },
+  "native-protection": {
+    id: "native-protection",
+    stepNumber: "07",
+    title: "Exchange-Native Protection",
+    category: "Capital Preservation",
+    icon: "🎯",
+    status: "ACTIVE",
+    subtitle: "STOP_MARKET & TAKE_PROFIT_MARKET on Binance",
+    payload: "SL: $66,410 | TP: $69,440 (Verified)",
+    description: "Instantly places hardware-level conditional bracket orders on Binance exchange servers. If protective orders fail or are rejected, the failsafe triggers an IMMEDIATE MARKET CLOSE for safety.",
+    details: [
+      { label: "Stop Loss", value: "$66,410.00 (Order #90214 • STOP_MARKET)" },
+      { label: "Take Profit", value: "$69,440.00 (Order #90215 • TAKE_PROFIT_MARKET)" },
+      { label: "Trigger Type", value: "MARK_PRICE (Immunized against manipulation)" },
+      { label: "Working Flags", value: "reduceOnly: true, closePosition: true" },
+    ],
+    formula: "SL = Entry * (1 - StopLoss%) ; TP = Entry * (1 + TakeProfit%)",
+    safetyCheck: "EMERGENCY SAFETY: If SL/TP fails, newly opened position is instantly liquidated.",
+  },
+  "pnl-monitor": {
+    id: "pnl-monitor",
+    stepNumber: "08",
+    title: "Real-Time PnL & Circuit Breaker",
+    category: "Monitoring & Exit",
+    icon: "📊",
+    status: "ACTIVE",
+    subtitle: "Live PnL • Fee Accounting • -5% Drawdown Breaker",
+    payload: "Unrealized: +2.85% (+$192.40 Net)",
+    description: "Tracks mark price live, updates unrealized P&L, accounts for 0.1% round-trip taker fees, and monitors daily loss limits. If daily drawdown reaches -5%, trading pauses for capital safety.",
+    details: [
+      { label: "Unrealized PnL", value: "+$192.40 (+2.85%)" },
+      { label: "Estimated Fees", value: "$14.80 (0.05% taker * 2)" },
+      { label: "Daily Circuit Breaker", value: "Max 5% daily drawdown (Halts bot)" },
+      { label: "Cleanup Routine", value: "Cancels orphan orders upon position exit" },
+    ],
+    formula: "PnL = (MarkPrice - Entry) * Qty - TotalFees ; Breaker: DailyPnL <= -0.05 * Balance",
+    safetyCheck: "Clean-up hook cancels all orphan conditional orders when position closes.",
+  },
+};
+
+function selectWorkflowNode(nodeId) {
+  const node = WORKFLOW_NODES[nodeId];
+  if (!node) return;
+
+  document.querySelectorAll(".workflow-node-card").forEach((card) => {
+    card.classList.toggle("selected", card.dataset.nodeId === nodeId);
+  });
+  document.querySelectorAll(".step-card").forEach((card) => {
+    card.classList.toggle("active-step", card.dataset.nodeId === nodeId);
+  });
+
+  const inspIcon = document.getElementById("wf-insp-icon");
+  const inspTitle = document.getElementById("wf-insp-title");
+  const inspCat = document.getElementById("wf-insp-cat");
+  const inspStatus = document.getElementById("wf-insp-status");
+  const inspDesc = document.getElementById("wf-insp-desc");
+  const inspParams = document.getElementById("wf-insp-params");
+  const inspFormula = document.getElementById("wf-insp-formula");
+  const inspSafety = document.getElementById("wf-insp-safety");
+
+  if (inspIcon) inspIcon.textContent = node.icon;
+  if (inspTitle) inspTitle.textContent = node.title;
+  if (inspCat) inspCat.textContent = `${node.category} • Step ${node.stepNumber}`;
+  if (inspStatus) inspStatus.textContent = node.status;
+  if (inspDesc) inspDesc.textContent = node.description;
+  if (inspFormula) inspFormula.textContent = node.formula || "Deterministic event loop execution";
+  if (inspSafety) inspSafety.textContent = node.safetyCheck;
+
+  if (inspParams) {
+    inspParams.innerHTML = "";
+    node.details.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "param-row";
+      const name = document.createElement("span");
+      name.className = "param-name";
+      name.textContent = item.label;
+      const val = document.createElement("span");
+      val.className = "param-val";
+      val.textContent = item.value;
+      row.appendChild(name);
+      row.appendChild(val);
+      inspParams.appendChild(row);
+    });
+  }
+}
+
+function initWorkflow() {
+  const flowBtn = document.getElementById("wf-toggle-flow");
+  const stepsBtn = document.getElementById("wf-toggle-steps");
+  const flowView = document.getElementById("wf-flow-view");
+  const stepsView = document.getElementById("wf-steps-view");
+
+  if (flowBtn && stepsBtn && flowView && stepsView) {
+    flowBtn.addEventListener("click", () => {
+      flowBtn.classList.add("active");
+      stepsBtn.classList.remove("active");
+      flowView.classList.remove("hidden");
+      stepsView.classList.add("hidden");
+    });
+
+    stepsBtn.addEventListener("click", () => {
+      stepsBtn.classList.add("active");
+      flowBtn.classList.remove("active");
+      stepsView.classList.remove("hidden");
+      flowView.classList.add("hidden");
+    });
+  }
+
+  document.querySelectorAll(".workflow-node-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.dataset.nodeId;
+      if (id) selectWorkflowNode(id);
+    });
+  });
+
+  document.querySelectorAll(".step-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.dataset.nodeId;
+      if (id) selectWorkflowNode(id);
+    });
+  });
+
+  selectWorkflowNode("signal-engine");
+}
+

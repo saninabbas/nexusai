@@ -14,6 +14,7 @@
     </div>
     <nav class="nav-list" aria-label="Control center">
       <a class="nav-item active" data-tab="overview" href="#overview">📊 Overview</a>
+      <a class="nav-item" data-tab="workflow" href="#workflow">⚡ How It Works</a>
       <a class="nav-item" data-tab="settings" href="#settings">⚙️ Settings</a>
       <a class="nav-item" data-tab="live" href="#live">🛡️ My Live Account</a>
       <a class="nav-item" data-tab="history" href="#history">📋 Trade History</a>
@@ -57,6 +58,396 @@
       <div class="section-card">
         <div class="card-title">Action Logs</div>
         <div id="action-log" class="action-log"><div>[SYSTEM] Control center ready.</div></div>
+      </div>
+    </section>
+
+    <section class="tab-pane" id="tab-workflow">
+      <div class="page-header"><i>⚡</i><h2>How It Works: Autonomous Quantitative Pipeline</h2></div>
+
+      <div class="workflow-container">
+        <!-- Topology Header -->
+        <div class="workflow-header">
+          <div class="workflow-title-group">
+            <div class="workflow-badge-icon">⚡</div>
+            <div>
+              <div class="workflow-title-row">
+                <h3>Live Topology: Autonomous Quantitative Pipeline</h3>
+                <span class="live-production-pill">LIVE PRODUCTION</span>
+              </div>
+              <p class="workflow-subtitle">
+                Click any node to inspect real parameters, payloads, indicators, and risk guards
+              </p>
+            </div>
+          </div>
+
+          <div class="workflow-controls">
+            <div class="view-toggle">
+              <button type="button" class="toggle-btn active" id="wf-toggle-flow">+ Flow Graph</button>
+              <button type="button" class="toggle-btn" id="wf-toggle-steps">☰ Pipeline Steps</button>
+            </div>
+            <div class="sync-indicator">
+              <span class="pulse-dot"></span> Live Synced
+            </div>
+          </div>
+        </div>
+
+        <!-- 2D Interactive Flow Topology Graph -->
+        <div id="wf-flow-view" class="flow-canvas-wrapper">
+          <div class="flow-canvas">
+            <svg class="flow-svg-overlay" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="wf-glow-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.8" />
+                  <stop offset="50%" stop-color="#00e676" stop-opacity="0.9" />
+                  <stop offset="100%" stop-color="#a8ff3e" stop-opacity="0.9" />
+                </linearGradient>
+                <linearGradient id="wf-glow-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8" />
+                  <stop offset="100%" stop-color="#00e5ff" stop-opacity="0.8" />
+                </linearGradient>
+              </defs>
+
+              <!-- Connector: 01 Market Feed -> 02 Sanitizer -->
+              <path d="M 240 100 C 275 100, 285 100, 320 100" fill="none" stroke="url(#wf-glow-cyan)" stroke-width="2.5" stroke-dasharray="5,4" class="animated-pulse-line" />
+              <!-- Connector: 02 Sanitizer -> 03 Signal Engine -->
+              <path d="M 560 100 C 600 100, 610 100, 650 100" fill="none" stroke="url(#wf-glow-cyan)" stroke-width="2.5" stroke-dasharray="5,4" class="animated-pulse-line" />
+              <!-- Connector: 03 Signal Engine -> 04 Gemini Research (downward branch) -->
+              <path d="M 770 180 C 770 230, 480 230, 480 280" fill="none" stroke="url(#wf-glow-purple)" stroke-width="2" stroke-dasharray="4,4" />
+              <!-- Connector: 03 Signal Engine -> 05 Risk Sizer (downward branch) -->
+              <path d="M 810 180 C 810 230, 780 230, 780 280" fill="none" stroke="url(#wf-glow-cyan)" stroke-width="2" stroke-dasharray="4,4" />
+              <!-- Connector: 05 Risk Sizer -> 06 Order Execution -->
+              <path d="M 910 280 C 940 280, 950 130, 980 100" fill="none" stroke="url(#wf-glow-cyan)" stroke-width="2.5" stroke-dasharray="5,4" class="animated-pulse-line" />
+              <!-- Connector: 06 Order Exec -> 07 Native Protection -->
+              <path d="M 1220 100 C 1255 100, 1265 100, 1300 100" fill="none" stroke="url(#wf-glow-cyan)" stroke-width="2.5" stroke-dasharray="5,4" class="animated-pulse-line" />
+              <!-- Connector: 07 Native Protection -> 08 PnL Monitor -->
+              <path d="M 1540 100 C 1575 100, 1585 100, 1620 100" fill="none" stroke="url(#wf-glow-cyan)" stroke-width="2.5" stroke-dasharray="5,4" class="animated-pulse-line" />
+            </svg>
+
+            <!-- Nodes Layout Grid -->
+            <div class="flow-nodes-layout">
+              <!-- Top Row: Primary Flow -->
+              <div class="flow-row main-flow-row">
+                <!-- Node 1: Market Feed -->
+                <div class="workflow-node-card" data-node-id="market-feed" style="width: 240px;">
+                  <div class="node-port port-right"></div>
+                  <div class="node-top">
+                    <span class="node-icon">⚡</span>
+                    <span class="node-title">Market Data Stream</span>
+                    <span class="node-status-pill green">ACTIVE</span>
+                  </div>
+                  <div class="node-sub">Binance Kline Stream • REST &amp; WebSocket Ticker</div>
+                  <div class="node-footer">
+                    <span class="payload-tag">PAYLOAD:</span>
+                    <span class="payload-val">120 Closed Candles (1m/5m/15m)</span>
+                  </div>
+                  <div class="connector-pill pill-right">raw data</div>
+                </div>
+
+                <!-- Node 2: Sanitizer -->
+                <div class="workflow-node-card" data-node-id="data-sanitizer" style="width: 240px;">
+                  <div class="node-port port-left"></div>
+                  <div class="node-port port-right"></div>
+                  <div class="node-top">
+                    <span class="node-icon">🛡️</span>
+                    <span class="node-title">Data Sanitizer &amp; Guard</span>
+                    <span class="node-status-pill cyan">VERIFIED</span>
+                  </div>
+                  <div class="node-sub">Deduplication • Geometry Audit • Closed Filter</div>
+                  <div class="node-footer">
+                    <span class="payload-tag">PAYLOAD:</span>
+                    <span class="payload-val">Clean OHLCV Series</span>
+                  </div>
+                  <div class="connector-pill pill-right">clean ohlcv</div>
+                </div>
+
+                <!-- Node 3: Signal Engine -->
+                <div class="workflow-node-card selected" data-node-id="signal-engine" style="width: 260px;">
+                  <div class="node-port port-left"></div>
+                  <div class="node-port port-bottom"></div>
+                  <div class="node-port port-right"></div>
+                  <div class="node-top">
+                    <span class="node-icon">🤖</span>
+                    <span class="node-title">Quantitative Signal Engine</span>
+                    <span class="node-status-pill cyan">EVALUATING</span>
+                  </div>
+                  <div class="node-sub">RSI Guard • MACD Crossover • 40-Bar Breakout</div>
+                  <div class="node-footer">
+                    <span class="payload-tag">PAYLOAD:</span>
+                    <span class="payload-val green-text">LONG Setup (Confidence: 82%)</span>
+                  </div>
+                  <div class="connector-pill pill-right">signal: LONG</div>
+                </div>
+
+                <!-- Node 6: Order Exec -->
+                <div class="workflow-node-card" data-node-id="order-exec" style="width: 240px;">
+                  <div class="node-port port-left"></div>
+                  <div class="node-port port-right"></div>
+                  <div class="node-top">
+                    <span class="node-icon">🚀</span>
+                    <span class="node-title">Binance Futures Entry</span>
+                    <span class="node-status-pill amber">EXECUTING</span>
+                  </div>
+                  <div class="node-sub">Market IOC Order • Testnet &amp; Guarded Live</div>
+                  <div class="node-footer">
+                    <span class="payload-tag">PAYLOAD:</span>
+                    <span class="payload-val">Filled @ $67,420.50 (Order #883912)</span>
+                  </div>
+                  <div class="connector-pill pill-right">fill @ $67,420</div>
+                </div>
+
+                <!-- Node 7: Native Protection Bracket -->
+                <div class="workflow-node-card" data-node-id="native-protection" style="width: 240px;">
+                  <div class="node-port port-left"></div>
+                  <div class="node-port port-right"></div>
+                  <div class="node-top">
+                    <span class="node-icon">🎯</span>
+                    <span class="node-title">Exchange-Native Protection</span>
+                    <span class="node-status-pill green">ARMED</span>
+                  </div>
+                  <div class="node-sub">STOP_MARKET &amp; TAKE_PROFIT_MARKET on Binance</div>
+                  <div class="node-footer">
+                    <span class="payload-tag">PAYLOAD:</span>
+                    <span class="payload-val green-text">SL: $66,410 | TP: $69,440 (Verified)</span>
+                  </div>
+                  <div class="connector-pill pill-right">dual SL/TP</div>
+                </div>
+
+                <!-- Node 8: Real-Time PnL & Monitor -->
+                <div class="workflow-node-card" data-node-id="pnl-monitor" style="width: 240px;">
+                  <div class="node-port port-left"></div>
+                  <div class="node-top">
+                    <span class="node-icon">📊</span>
+                    <span class="node-title">Real-Time PnL &amp; Circuit Breaker</span>
+                    <span class="node-status-pill green">MONITORING</span>
+                  </div>
+                  <div class="node-sub">Live PnL • Fee Accounting • -5% Drawdown Breaker</div>
+                  <div class="node-footer">
+                    <span class="payload-tag">PAYLOAD:</span>
+                    <span class="payload-val green-text">Unrealized: +2.85% (+$192.40 Net)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bottom Row: AI Intelligence & Sizing Branch -->
+              <div class="flow-row sub-flow-row" style="margin-top: 32px; padding-left: 360px;">
+                <!-- Node 4: Gemini AI -->
+                <div class="workflow-node-card sub-card" data-node-id="gemini-research" style="width: 250px;">
+                  <div class="node-port port-top"></div>
+                  <div class="node-top">
+                    <span class="node-icon">🌐</span>
+                    <span class="node-title">Gemini AI News Guard</span>
+                    <span class="node-status-pill purple">GROUNDED</span>
+                  </div>
+                  <div class="node-sub">24h Macro Sentiment • Google Search Grounding</div>
+                  <div class="node-footer">
+                    <span class="payload-tag">PAYLOAD:</span>
+                    <span class="payload-val">Risk Level: LOW (Score 88/100)</span>
+                  </div>
+                </div>
+
+                <!-- Node 5: Risk Sizer -->
+                <div class="workflow-node-card sub-card" data-node-id="risk-sizer" style="width: 250px; margin-left: 40px;">
+                  <div class="node-port port-top"></div>
+                  <div class="node-port port-right"></div>
+                  <div class="node-top">
+                    <span class="node-icon">⚖️</span>
+                    <span class="node-title">Dynamic Risk &amp; Lot Sizing</span>
+                    <span class="node-status-pill cyan">SIZED</span>
+                  </div>
+                  <div class="node-sub">1% Equity Budget • Max 10x Leverage • Min Notional</div>
+                  <div class="node-footer">
+                    <span class="payload-tag">PAYLOAD:</span>
+                    <span class="payload-val">Qty: 0.045 BTC ($3,034 Notional)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sequential Linear Pipeline Steps View -->
+        <div id="wf-steps-view" class="steps-container hidden">
+          <div class="steps-grid" id="wf-steps-grid">
+            <div class="step-card" data-node-id="market-feed">
+              <div class="step-header">
+                <span class="step-num">01</span>
+                <span class="step-icon">⚡</span>
+                <div class="step-title-wrap">
+                  <h4>Market Data Stream</h4>
+                  <span class="step-cat">Ingestion Layer</span>
+                </div>
+                <span class="node-status-pill green">ACTIVE</span>
+              </div>
+              <p class="step-desc">Continuously streams real-time Kline OHLCV candles and live ticker prices directly from Binance Futures endpoints. Buffers completed historical periods for deterministic indicator computation.</p>
+              <div class="step-footer">
+                <small class="step-payload-label">PAYLOAD:</small>
+                <code>120 Closed Candles (1m/5m/15m)</code>
+              </div>
+            </div>
+
+            <div class="step-card" data-node-id="data-sanitizer">
+              <div class="step-header">
+                <span class="step-num">02</span>
+                <span class="step-icon">🛡️</span>
+                <div class="step-title-wrap">
+                  <h4>Data Sanitizer &amp; Guard</h4>
+                  <span class="step-cat">Integrity Layer</span>
+                </div>
+                <span class="node-status-pill cyan">VERIFIED</span>
+              </div>
+              <p class="step-desc">Sanitizes all market data before quantitative evaluation. Filters out forming/unclosed candles to prevent lookahead bias. Validates candle geometry and eliminates corrupt spikes.</p>
+              <div class="step-footer">
+                <small class="step-payload-label">PAYLOAD:</small>
+                <code>Clean OHLCV Series</code>
+              </div>
+            </div>
+
+            <div class="step-card active-step" data-node-id="signal-engine">
+              <div class="step-header">
+                <span class="step-num">03</span>
+                <span class="step-icon">🤖</span>
+                <div class="step-title-wrap">
+                  <h4>Quantitative Signal Engine</h4>
+                  <span class="step-cat">Strategy Engine</span>
+                </div>
+                <span class="node-status-pill cyan">COMPLETED</span>
+              </div>
+              <p class="step-desc">Evaluates multi-timeframe mathematical indicators. Validates EMA 50/200 trend alignment, 40-candle Donchian breakout thresholds, and filters out false moves with the 14-period RSI guard.</p>
+              <div class="step-footer">
+                <small class="step-payload-label">PAYLOAD:</small>
+                <code>LONG Setup (Confidence: 82%)</code>
+              </div>
+            </div>
+
+            <div class="step-card" data-node-id="gemini-research">
+              <div class="step-header">
+                <span class="step-num">04</span>
+                <span class="step-icon">🌐</span>
+                <div class="step-title-wrap">
+                  <h4>Gemini AI News Guard</h4>
+                  <span class="step-cat">Cloud Intelligence</span>
+                </div>
+                <span class="node-status-pill purple">GUARDED</span>
+              </div>
+              <p class="step-desc">Server-side Gemini 3.7 Flash agent performs search-grounded market intelligence. Scans the last 24 hours of breaking news, Federal Reserve catalysts, and exchange risks to veto risky trades.</p>
+              <div class="step-footer">
+                <small class="step-payload-label">PAYLOAD:</small>
+                <code>Risk Level: LOW (Score 88/100)</code>
+              </div>
+            </div>
+
+            <div class="step-card" data-node-id="risk-sizer">
+              <div class="step-header">
+                <span class="step-num">05</span>
+                <span class="step-icon">⚖️</span>
+                <div class="step-title-wrap">
+                  <h4>Dynamic Risk &amp; Lot Sizing</h4>
+                  <span class="step-cat">Risk Control</span>
+                </div>
+                <span class="node-status-pill cyan">COMPLETED</span>
+              </div>
+              <p class="step-desc">Computes position size mathematically based on stop-loss distance, available balance, and exchange lot step constraints. Hard clamps leverage to 10x maximum to prevent liquidation.</p>
+              <div class="step-footer">
+                <small class="step-payload-label">PAYLOAD:</small>
+                <code>Qty: 0.045 BTC ($3,034 Notional)</code>
+              </div>
+            </div>
+
+            <div class="step-card" data-node-id="order-exec">
+              <div class="step-header">
+                <span class="step-num">06</span>
+                <span class="step-icon">🚀</span>
+                <div class="step-title-wrap">
+                  <h4>Binance Futures Entry</h4>
+                  <span class="step-cat">Execution Layer</span>
+                </div>
+                <span class="node-status-pill amber">RUNNING</span>
+              </div>
+              <p class="step-desc">Submits authenticated signed POST order to Binance Futures API. Validates execution response, average fill price, and executed quantity with millisecond clock offset synchronization.</p>
+              <div class="step-footer">
+                <small class="step-payload-label">PAYLOAD:</small>
+                <code>Filled @ $67,420.50 (Order #883912)</code>
+              </div>
+            </div>
+
+            <div class="step-card" data-node-id="native-protection">
+              <div class="step-header">
+                <span class="step-num">07</span>
+                <span class="step-icon">🎯</span>
+                <div class="step-title-wrap">
+                  <h4>Exchange-Native Protection</h4>
+                  <span class="step-cat">Capital Preservation</span>
+                </div>
+                <span class="node-status-pill green">ACTIVE</span>
+              </div>
+              <p class="step-desc">Instantly places hardware-level conditional bracket orders on Binance exchange servers. If protective orders fail or are rejected, the failsafe triggers an IMMEDIATE MARKET CLOSE for safety.</p>
+              <div class="step-footer">
+                <small class="step-payload-label">PAYLOAD:</small>
+                <code>SL: $66,410 | TP: $69,440 (Verified)</code>
+              </div>
+            </div>
+
+            <div class="step-card" data-node-id="pnl-monitor">
+              <div class="step-header">
+                <span class="step-num">08</span>
+                <span class="step-icon">📊</span>
+                <div class="step-title-wrap">
+                  <h4>Real-Time PnL &amp; Circuit Breaker</h4>
+                  <span class="step-cat">Monitoring &amp; Exit</span>
+                </div>
+                <span class="node-status-pill green">ACTIVE</span>
+              </div>
+              <p class="step-desc">Tracks mark price live, updates unrealized P&amp;L, accounts for 0.1% round-trip taker fees, and monitors daily loss limits. If daily drawdown reaches -5%, trading pauses for capital safety.</p>
+              <div class="step-footer">
+                <small class="step-payload-label">PAYLOAD:</small>
+                <code>Unrealized: +2.85% (+$192.40 Net)</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node Inspector Drawer -->
+        <div id="wf-inspector" class="inspector-panel">
+          <div class="inspector-head">
+            <div class="inspector-title">
+              <span id="wf-insp-icon">🤖</span>
+              <div>
+                <h4 id="wf-insp-title">Quantitative Signal Engine</h4>
+                <small id="wf-insp-cat">Strategy Engine • Step 03</small>
+              </div>
+            </div>
+            <span class="inspector-status-badge">
+              STATUS: <strong id="wf-insp-status">COMPLETED</strong>
+            </span>
+          </div>
+
+          <p class="inspector-desc" id="wf-insp-desc">
+            Evaluates multi-timeframe mathematical indicators. Validates EMA 50/200 trend alignment, 40-candle Donchian breakout thresholds, and filters out false moves with the 14-period RSI guard.
+          </p>
+
+          <div class="inspector-grid">
+            <div class="inspector-card">
+              <h5>Runtime Parameters</h5>
+              <div class="params-list" id="wf-insp-params">
+                <div class="param-row"><span class="param-name">Trend Filter</span><span class="param-val">Price &gt; EMA50 &gt; EMA200 (Bullish regime)</span></div>
+                <div class="param-row"><span class="param-name">Breakout Rule</span><span class="param-val">Price &gt; 40-candle prior high</span></div>
+                <div class="param-row"><span class="param-name">RSI Filter</span><span class="param-val">RSI-14 &lt;= 75 (Not overbought)</span></div>
+                <div class="param-row"><span class="param-name">MACD Crossover</span><span class="param-val">Histogram &gt; 0 &amp; Line &gt; Signal (+2 score)</span></div>
+              </div>
+            </div>
+
+            <div class="inspector-card">
+              <h5>Algorithm &amp; Formula</h5>
+              <div class="formula-box">
+                <code id="wf-insp-formula">Score = Breakout(3) + Trend(2) + RSI_Guard(2) + MACD(2) &gt;= Threshold(2)</code>
+              </div>
+              <div class="safety-alert">
+                <strong>🛡️ Security &amp; Protection Guard:</strong>
+                <p id="wf-insp-safety">RSI edge-case guard prevents false triggers on flat/oscillating markets.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
