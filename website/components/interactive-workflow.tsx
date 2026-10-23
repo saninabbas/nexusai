@@ -5,10 +5,11 @@ import React, { useState } from "react";
 interface WorkflowNode {
   id: string;
   stepNumber: string;
+  stageName: string;
   title: string;
   category: string;
   icon: string;
-  status: "COMPLETED" | "RUNNING" | "ACTIVE" | "VERIFIED" | "GUARDED";
+  status: "ACTIVE" | "VERIFIED" | "EVALUATING" | "GUARDED" | "SIZED" | "EXECUTING" | "ARMED" | "MONITORING";
   subtitle: string;
   payload: string;
   description: string;
@@ -25,11 +26,12 @@ const WORKFLOW_NODES: WorkflowNode[] = [
   {
     id: "market-feed",
     stepNumber: "01",
+    stageName: "STAGE 1 • INGESTION",
     title: "Market Data Stream",
     category: "Ingestion Layer",
     icon: "⚡",
     status: "ACTIVE",
-    subtitle: "Binance Kline Stream • REST & WebSocket Ticker",
+    subtitle: "Binance Kline Stream & WebSocket Mark Ticker",
     payload: "120 Closed Candles (1m/5m/15m)",
     description:
       "Continuously streams real-time Kline OHLCV candles and live ticker prices directly from Binance Futures endpoints. Buffers completed historical periods for deterministic indicator computation.",
@@ -46,11 +48,12 @@ const WORKFLOW_NODES: WorkflowNode[] = [
   {
     id: "data-sanitizer",
     stepNumber: "02",
+    stageName: "STAGE 1 • INTEGRITY",
     title: "Data Sanitizer & Guard",
     category: "Integrity Layer",
     icon: "🛡️",
     status: "VERIFIED",
-    subtitle: "Deduplication • Geometry Audit • Closed Filter",
+    subtitle: "Deduplication & Zero Lookahead Filter",
     payload: "Clean OHLCV Series",
     description:
       "Sanitizes all market data before quantitative evaluation. Filters out forming/unclosed candles to prevent lookahead bias. Validates candle geometry and eliminates corrupt spikes.",
@@ -67,11 +70,12 @@ const WORKFLOW_NODES: WorkflowNode[] = [
   {
     id: "signal-engine",
     stepNumber: "03",
+    stageName: "STAGE 1 • STRATEGY",
     title: "Quantitative Signal Engine",
     category: "Strategy Engine",
     icon: "🤖",
-    status: "COMPLETED",
-    subtitle: "RSI Guard • MACD Crossover • 40-Bar Breakout",
+    status: "EVALUATING",
+    subtitle: "RSI Guard, MACD Cross & 40-Bar Breakout",
     payload: "LONG Setup (Confidence: 82%)",
     description:
       "Evaluates multi-timeframe mathematical indicators. Validates EMA 50/200 trend alignment, 40-candle Donchian breakout thresholds, and filters out false moves with the 14-period RSI guard.",
@@ -88,11 +92,12 @@ const WORKFLOW_NODES: WorkflowNode[] = [
   {
     id: "gemini-research",
     stepNumber: "04",
+    stageName: "STAGE 1 • AI GATE",
     title: "Gemini AI News Guard",
     category: "Cloud Intelligence",
     icon: "🌐",
     status: "GUARDED",
-    subtitle: "24h Macro Sentiment • Google Search Grounding",
+    subtitle: "24h Macro Sentiment & Search Grounding",
     payload: "Risk Level: LOW (Score 88/100)",
     description:
       "Server-side Gemini 3.7 Flash agent performs search-grounded market intelligence. Scans the last 24 hours of breaking news, Federal Reserve catalysts, and exchange risks to veto risky trades.",
@@ -109,11 +114,12 @@ const WORKFLOW_NODES: WorkflowNode[] = [
   {
     id: "risk-sizer",
     stepNumber: "05",
+    stageName: "STAGE 2 • RISK CONTROL",
     title: "Dynamic Risk & Lot Sizing",
     category: "Risk Control",
     icon: "⚖️",
-    status: "COMPLETED",
-    subtitle: "1% Equity Budget • Max 10x Leverage • Min Notional",
+    status: "SIZED",
+    subtitle: "1% Equity Budget & Max 10x Leverage",
     payload: "Qty: 0.045 BTC ($3,034 Notional)",
     description:
       "Computes position size mathematically based on stop-loss distance, available balance, and exchange lot step constraints. Hard clamps leverage to 10x maximum to prevent liquidation.",
@@ -130,11 +136,12 @@ const WORKFLOW_NODES: WorkflowNode[] = [
   {
     id: "order-exec",
     stepNumber: "06",
+    stageName: "STAGE 2 • EXECUTION",
     title: "Binance Futures Entry",
     category: "Execution Layer",
     icon: "🚀",
-    status: "RUNNING",
-    subtitle: "Market IOC Order • Testnet & Guarded Live",
+    status: "EXECUTING",
+    subtitle: "Signed HMAC Market IOC Order",
     payload: "Filled @ $67,420.50 (Order #883912)",
     description:
       "Submits authenticated signed POST order to Binance Futures API. Validates execution response, average fill price, and executed quantity with millisecond clock offset synchronization.",
@@ -151,11 +158,12 @@ const WORKFLOW_NODES: WorkflowNode[] = [
   {
     id: "native-protection",
     stepNumber: "07",
+    stageName: "STAGE 2 • PROTECTION",
     title: "Exchange-Native Protection",
     category: "Capital Preservation",
     icon: "🎯",
-    status: "ACTIVE",
-    subtitle: "STOP_MARKET & TAKE_PROFIT_MARKET on Binance",
+    status: "ARMED",
+    subtitle: "Hardware STOP_MARKET & TAKE_PROFIT",
     payload: "SL: $66,410 | TP: $69,440 (Verified)",
     description:
       "Instantly places hardware-level conditional bracket orders on Binance exchange servers. If protective orders fail or are rejected, the failsafe triggers an IMMEDIATE MARKET CLOSE for safety.",
@@ -172,11 +180,12 @@ const WORKFLOW_NODES: WorkflowNode[] = [
   {
     id: "pnl-monitor",
     stepNumber: "08",
-    title: "Real-Time PnL & Circuit Breaker",
+    stageName: "STAGE 2 • MONITORING",
+    title: "Real-Time PnL & Breaker",
     category: "Monitoring & Exit",
     icon: "📊",
-    status: "ACTIVE",
-    subtitle: "Live PnL • Fee Accounting • -5% Drawdown Breaker",
+    status: "MONITORING",
+    subtitle: "Fee Accounting & -5% Loss Breaker",
     payload: "Unrealized: +2.85% (+$192.40 Net)",
     description:
       "Tracks mark price live, updates unrealized P&L, accounts for 0.1% round-trip taker fees, and monitors daily loss limits. If daily drawdown reaches -5%, trading pauses for capital safety.",
@@ -196,376 +205,214 @@ export default function InteractiveWorkflow() {
   const [activeTab, setActiveTab] = useState<"flow" | "steps">("flow");
   const [selectedNode, setSelectedNode] = useState<WorkflowNode>(WORKFLOW_NODES[2]);
 
+  const row1Nodes = WORKFLOW_NODES.slice(0, 4);
+  const row2Nodes = WORKFLOW_NODES.slice(4, 8);
+
   return (
-    <div className="workflow-container">
-      {/* Topology Header */}
-      <div className="workflow-header">
-        <div className="workflow-title-group">
-          <div className="workflow-badge-icon">⚡</div>
+    <div className="wf-terminal">
+      {/* Terminal Top Bar */}
+      <div className="wf-terminal-top">
+        <div className="wf-brand-group">
+          <span className="wf-brand-mark">N</span>
           <div>
-            <div className="workflow-title-row">
-              <h3>Live Topology: Autonomous Quantitative Pipeline</h3>
-              <span className="live-production-pill">LIVE PRODUCTION</span>
+            <div className="wf-title-row">
+              <h3>LIVE TOPOLOGY: AUTONOMOUS QUANTITATIVE PIPELINE</h3>
+              <span className="wf-live-pill">LIVE PRODUCTION</span>
             </div>
-            <p className="workflow-subtitle">
-              Click any node to inspect real parameters, payloads, indicators, and risk guards
+            <p className="wf-subtitle">
+              Click any node to inspect real runtime parameters, quantitative formulas, and protection guards
             </p>
           </div>
         </div>
 
-        <div className="workflow-controls">
-          <div className="view-toggle">
+        <div className="wf-controls">
+          <div className="wf-view-toggle">
             <button
               type="button"
-              className={`toggle-btn ${activeTab === "flow" ? "active" : ""}`}
+              className={`wf-toggle-btn ${activeTab === "flow" ? "active" : ""}`}
               onClick={() => setActiveTab("flow")}
             >
-              + Flow Graph
+              + Pipeline Topology
             </button>
             <button
               type="button"
-              className={`toggle-btn ${activeTab === "steps" ? "active" : ""}`}
+              className={`wf-toggle-btn ${activeTab === "steps" ? "active" : ""}`}
               onClick={() => setActiveTab("steps")}
             >
-              ☰ Pipeline Steps
+              ☰ Detailed Steps
             </button>
           </div>
-
-          <div className="sync-indicator">
-            <span className="pulse-dot" /> Live Synced
+          <div className="wf-sync-pill">
+            <span className="wf-pulse-dot" /> SYSTEM SYNCD
           </div>
         </div>
       </div>
 
       {activeTab === "flow" ? (
-        /* 2D Interactive Flow Topology Graph */
-        <div className="flow-canvas-wrapper">
-          <div className="flow-canvas">
-            {/* Background SVG Grid and Glowing Connectors */}
-            <svg className="flow-svg-overlay" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="glow-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#00e5ff" stopOpacity="0.8" />
-                  <stop offset="50%" stopColor="#00e676" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#a8ff3e" stopOpacity="0.9" />
-                </linearGradient>
-                <linearGradient id="glow-purple" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#00e5ff" stopOpacity="0.8" />
-                </linearGradient>
-              </defs>
+        /* Fully Responsive 2-Tier Topology Pipeline */
+        <div className="wf-flow-body">
+          {/* STAGE 1: Market Signal & Intelligence Gate */}
+          <div className="wf-stage-block">
+            <div className="wf-stage-header">
+              <span className="wf-stage-index">STAGE 01</span>
+              <h4>SIGNAL GENERATION &amp; MACRO INTELLIGENCE GATE</h4>
+              <span className="wf-stage-tag">CONTINUOUS STREAM</span>
+            </div>
 
-              {/* Connector: 01 Market Feed -> 02 Sanitizer */}
-              <path
-                d="M 240 100 C 275 100, 285 100, 320 100"
-                fill="none"
-                stroke="url(#glow-cyan)"
-                strokeWidth="2.5"
-                strokeDasharray="5,4"
-                className="animated-pulse-line"
-              />
+            <div className="wf-nodes-grid">
+              {row1Nodes.map((node, index) => {
+                const isSelected = selectedNode.id === node.id;
+                return (
+                  <div key={node.id} className="wf-node-wrapper">
+                    <div
+                      className={`wf-node-box ${isSelected ? "selected" : ""}`}
+                      onClick={() => setSelectedNode(node)}
+                    >
+                      <div className="wf-node-header">
+                        <span className="wf-node-num">{node.stepNumber}</span>
+                        <span className="wf-node-icon">{node.icon}</span>
+                        <span className={`wf-status-badge ${node.status.toLowerCase()}`}>
+                          {node.status}
+                        </span>
+                      </div>
+                      <h5 className="wf-node-title">{node.title}</h5>
+                      <p className="wf-node-sub">{node.subtitle}</p>
+                      <div className="wf-node-payload">
+                        <small>PAYLOAD:</small>
+                        <span>{node.payload}</span>
+                      </div>
+                    </div>
+                    {index < 3 && <div className="wf-arrow-next">➔</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-              {/* Connector: 02 Sanitizer -> 03 Signal Engine */}
-              <path
-                d="M 560 100 C 600 100, 610 100, 650 100"
-                fill="none"
-                stroke="url(#glow-cyan)"
-                strokeWidth="2.5"
-                strokeDasharray="5,4"
-                className="animated-pulse-line"
-              />
+          {/* Inter-Stage Transition Banner */}
+          <div className="wf-inter-stage-banner">
+            <div className="wf-connector-line" />
+            <div className="wf-connector-pill">
+              <span>🛡️ AI RESEARCH GATE PASSED</span>
+              <strong>➔ DEPLOYING CAPITAL &amp; RISK SIZING MODEL</strong>
+            </div>
+            <div className="wf-connector-line" />
+          </div>
 
-              {/* Connector: 03 Signal Engine -> 04 Gemini Research (downward branch) */}
-              <path
-                d="M 770 180 C 770 230, 480 230, 480 280"
-                fill="none"
-                stroke="url(#glow-purple)"
-                strokeWidth="2"
-                strokeDasharray="4,4"
-              />
+          {/* STAGE 2: Execution & Capital Preservation */}
+          <div className="wf-stage-block">
+            <div className="wf-stage-header">
+              <span className="wf-stage-index">STAGE 02</span>
+              <h4>AUTHENTICATED EXECUTION &amp; HARDWARE PROTECTION</h4>
+              <span className="wf-stage-tag">FAILSAFE ARMED</span>
+            </div>
 
-              {/* Connector: 03 Signal Engine -> 05 Risk Sizer (downward branch) */}
-              <path
-                d="M 810 180 C 810 230, 780 230, 780 280"
-                fill="none"
-                stroke="url(#glow-cyan)"
-                strokeWidth="2"
-                strokeDasharray="4,4"
-              />
-
-              {/* Connector: 05 Risk Sizer -> 06 Order Execution */}
-              <path
-                d="M 910 280 C 940 280, 950 130, 980 100"
-                fill="none"
-                stroke="url(#glow-cyan)"
-                strokeWidth="2.5"
-                strokeDasharray="5,4"
-                className="animated-pulse-line"
-              />
-
-              {/* Connector: 06 Order Exec -> 07 Native Protection */}
-              <path
-                d="M 1220 100 C 1255 100, 1265 100, 1300 100"
-                fill="none"
-                stroke="url(#glow-cyan)"
-                strokeWidth="2.5"
-                strokeDasharray="5,4"
-                className="animated-pulse-line"
-              />
-
-              {/* Connector: 07 Native Protection -> 08 PnL Monitor */}
-              <path
-                d="M 1540 100 C 1575 100, 1585 100, 1620 100"
-                fill="none"
-                stroke="url(#glow-cyan)"
-                strokeWidth="2.5"
-                strokeDasharray="5,4"
-                className="animated-pulse-line"
-              />
-            </svg>
-
-            {/* Nodes Layout Grid */}
-            <div className="flow-nodes-layout">
-              {/* Top Row: Primary Flow */}
-              <div className="flow-row main-flow-row">
-                {/* Node 1: Market Feed */}
-                <div
-                  className={`workflow-node-card ${selectedNode.id === "market-feed" ? "selected" : ""}`}
-                  style={{ width: "240px" }}
-                  onClick={() => setSelectedNode(WORKFLOW_NODES[0])}
-                >
-                  <div className="node-port port-right" />
-                  <div className="node-top">
-                    <span className="node-icon">{WORKFLOW_NODES[0].icon}</span>
-                    <span className="node-title">{WORKFLOW_NODES[0].title}</span>
-                    <span className="node-status-pill green">ACTIVE</span>
+            <div className="wf-nodes-grid">
+              {row2Nodes.map((node, index) => {
+                const isSelected = selectedNode.id === node.id;
+                return (
+                  <div key={node.id} className="wf-node-wrapper">
+                    <div
+                      className={`wf-node-box ${isSelected ? "selected" : ""}`}
+                      onClick={() => setSelectedNode(node)}
+                    >
+                      <div className="wf-node-header">
+                        <span className="wf-node-num">{node.stepNumber}</span>
+                        <span className="wf-node-icon">{node.icon}</span>
+                        <span className={`wf-status-badge ${node.status.toLowerCase()}`}>
+                          {node.status}
+                        </span>
+                      </div>
+                      <h5 className="wf-node-title">{node.title}</h5>
+                      <p className="wf-node-sub">{node.subtitle}</p>
+                      <div className="wf-node-payload">
+                        <small>PAYLOAD:</small>
+                        <span className="lime-text">{node.payload}</span>
+                      </div>
+                    </div>
+                    {index < 3 && <div className="wf-arrow-next">➔</div>}
                   </div>
-                  <div className="node-sub">{WORKFLOW_NODES[0].subtitle}</div>
-                  <div className="node-footer">
-                    <span className="payload-tag">PAYLOAD:</span>
-                    <span className="payload-val">{WORKFLOW_NODES[0].payload}</span>
-                  </div>
-                  <div className="connector-pill pill-right">raw data</div>
-                </div>
-
-                {/* Node 2: Sanitizer */}
-                <div
-                  className={`workflow-node-card ${selectedNode.id === "data-sanitizer" ? "selected" : ""}`}
-                  style={{ width: "240px" }}
-                  onClick={() => setSelectedNode(WORKFLOW_NODES[1])}
-                >
-                  <div className="node-port port-left" />
-                  <div className="node-port port-right" />
-                  <div className="node-top">
-                    <span className="node-icon">{WORKFLOW_NODES[1].icon}</span>
-                    <span className="node-title">{WORKFLOW_NODES[1].title}</span>
-                    <span className="node-status-pill cyan">VERIFIED</span>
-                  </div>
-                  <div className="node-sub">{WORKFLOW_NODES[1].subtitle}</div>
-                  <div className="node-footer">
-                    <span className="payload-tag">PAYLOAD:</span>
-                    <span className="payload-val">{WORKFLOW_NODES[1].payload}</span>
-                  </div>
-                  <div className="connector-pill pill-right">clean ohlcv</div>
-                </div>
-
-                {/* Node 3: Signal Engine */}
-                <div
-                  className={`workflow-node-card ${selectedNode.id === "signal-engine" ? "selected" : ""}`}
-                  style={{ width: "260px" }}
-                  onClick={() => setSelectedNode(WORKFLOW_NODES[2])}
-                >
-                  <div className="node-port port-left" />
-                  <div className="node-port port-bottom" />
-                  <div className="node-port port-right" />
-                  <div className="node-top">
-                    <span className="node-icon">{WORKFLOW_NODES[2].icon}</span>
-                    <span className="node-title">{WORKFLOW_NODES[2].title}</span>
-                    <span className="node-status-pill cyan">EVALUATING</span>
-                  </div>
-                  <div className="node-sub">{WORKFLOW_NODES[2].subtitle}</div>
-                  <div className="node-footer">
-                    <span className="payload-tag">PAYLOAD:</span>
-                    <span className="payload-val green-text">{WORKFLOW_NODES[2].payload}</span>
-                  </div>
-                  <div className="connector-pill pill-right">signal: LONG</div>
-                </div>
-
-                {/* Node 6: Order Exec */}
-                <div
-                  className={`workflow-node-card ${selectedNode.id === "order-exec" ? "selected" : ""}`}
-                  style={{ width: "240px" }}
-                  onClick={() => setSelectedNode(WORKFLOW_NODES[5])}
-                >
-                  <div className="node-port port-left" />
-                  <div className="node-port port-right" />
-                  <div className="node-top">
-                    <span className="node-icon">{WORKFLOW_NODES[5].icon}</span>
-                    <span className="node-title">{WORKFLOW_NODES[5].title}</span>
-                    <span className="node-status-pill amber">EXECUTING</span>
-                  </div>
-                  <div className="node-sub">{WORKFLOW_NODES[5].subtitle}</div>
-                  <div className="node-footer">
-                    <span className="payload-tag">PAYLOAD:</span>
-                    <span className="payload-val">{WORKFLOW_NODES[5].payload}</span>
-                  </div>
-                  <div className="connector-pill pill-right">fill @ $67,420</div>
-                </div>
-
-                {/* Node 7: Native Protection Bracket */}
-                <div
-                  className={`workflow-node-card ${selectedNode.id === "native-protection" ? "selected" : ""}`}
-                  style={{ width: "240px" }}
-                  onClick={() => setSelectedNode(WORKFLOW_NODES[6])}
-                >
-                  <div className="node-port port-left" />
-                  <div className="node-port port-right" />
-                  <div className="node-top">
-                    <span className="node-icon">{WORKFLOW_NODES[6].icon}</span>
-                    <span className="node-title">{WORKFLOW_NODES[6].title}</span>
-                    <span className="node-status-pill green">ARMED</span>
-                  </div>
-                  <div className="node-sub">{WORKFLOW_NODES[6].subtitle}</div>
-                  <div className="node-footer">
-                    <span className="payload-tag">PAYLOAD:</span>
-                    <span className="payload-val green-text">{WORKFLOW_NODES[6].payload}</span>
-                  </div>
-                  <div className="connector-pill pill-right">dual SL/TP</div>
-                </div>
-
-                {/* Node 8: Real-Time PnL & Monitor */}
-                <div
-                  className={`workflow-node-card ${selectedNode.id === "pnl-monitor" ? "selected" : ""}`}
-                  style={{ width: "240px" }}
-                  onClick={() => setSelectedNode(WORKFLOW_NODES[7])}
-                >
-                  <div className="node-port port-left" />
-                  <div className="node-top">
-                    <span className="node-icon">{WORKFLOW_NODES[7].icon}</span>
-                    <span className="node-title">{WORKFLOW_NODES[7].title}</span>
-                    <span className="node-status-pill green">MONITORING</span>
-                  </div>
-                  <div className="node-sub">{WORKFLOW_NODES[7].subtitle}</div>
-                  <div className="node-footer">
-                    <span className="payload-tag">PAYLOAD:</span>
-                    <span className="payload-val green-text">{WORKFLOW_NODES[7].payload}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Row: AI Intelligence & Sizing Branch */}
-              <div className="flow-row sub-flow-row" style={{ marginTop: "32px", paddingLeft: "360px" }}>
-                {/* Node 4: Gemini AI */}
-                <div
-                  className={`workflow-node-card sub-card ${selectedNode.id === "gemini-research" ? "selected" : ""}`}
-                  style={{ width: "250px" }}
-                  onClick={() => setSelectedNode(WORKFLOW_NODES[3])}
-                >
-                  <div className="node-port port-top" />
-                  <div className="node-top">
-                    <span className="node-icon">{WORKFLOW_NODES[3].icon}</span>
-                    <span className="node-title">{WORKFLOW_NODES[3].title}</span>
-                    <span className="node-status-pill purple">GROUNDED</span>
-                  </div>
-                  <div className="node-sub">{WORKFLOW_NODES[3].subtitle}</div>
-                  <div className="node-footer">
-                    <span className="payload-tag">PAYLOAD:</span>
-                    <span className="payload-val">{WORKFLOW_NODES[3].payload}</span>
-                  </div>
-                </div>
-
-                {/* Node 5: Risk Sizer */}
-                <div
-                  className={`workflow-node-card sub-card ${selectedNode.id === "risk-sizer" ? "selected" : ""}`}
-                  style={{ width: "250px", marginLeft: "40px" }}
-                  onClick={() => setSelectedNode(WORKFLOW_NODES[4])}
-                >
-                  <div className="node-port port-top" />
-                  <div className="node-port port-right" />
-                  <div className="node-top">
-                    <span className="node-icon">{WORKFLOW_NODES[4].icon}</span>
-                    <span className="node-title">{WORKFLOW_NODES[4].title}</span>
-                    <span className="node-status-pill cyan">SIZED</span>
-                  </div>
-                  <div className="node-sub">{WORKFLOW_NODES[4].subtitle}</div>
-                  <div className="node-footer">
-                    <span className="payload-tag">PAYLOAD:</span>
-                    <span className="payload-val">{WORKFLOW_NODES[4].payload}</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
         </div>
       ) : (
         /* Sequential Linear Pipeline Steps View */
-        <div className="steps-container">
-          <div className="steps-grid">
-            {WORKFLOW_NODES.map((node) => (
-              <div
-                key={node.id}
-                className={`step-card ${selectedNode.id === node.id ? "active-step" : ""}`}
-                onClick={() => setSelectedNode(node)}
-              >
-                <div className="step-header">
-                  <span className="step-num">{node.stepNumber}</span>
-                  <span className="step-icon">{node.icon}</span>
-                  <div className="step-title-wrap">
-                    <h4>{node.title}</h4>
-                    <span className="step-cat">{node.category}</span>
+        <div className="wf-steps-body">
+          <div className="wf-steps-list">
+            {WORKFLOW_NODES.map((node) => {
+              const isSelected = selectedNode.id === node.id;
+              return (
+                <div
+                  key={node.id}
+                  className={`wf-step-item ${isSelected ? "selected" : ""}`}
+                  onClick={() => setSelectedNode(node)}
+                >
+                  <div className="wf-step-top">
+                    <div className="wf-step-title-wrap">
+                      <span className="wf-step-badge">{node.stepNumber}</span>
+                      <span className="wf-step-icon">{node.icon}</span>
+                      <div>
+                        <h5>{node.title}</h5>
+                        <small>{node.category}</small>
+                      </div>
+                    </div>
+                    <span className={`wf-status-badge ${node.status.toLowerCase()}`}>
+                      {node.status}
+                    </span>
                   </div>
-                  <span className={`node-status-pill ${node.status.toLowerCase()}`}>
-                    {node.status}
-                  </span>
+                  <p className="wf-step-desc">{node.description}</p>
+                  <div className="wf-step-foot">
+                    <span className="wf-payload-label">PAYLOAD:</span>
+                    <code>{node.payload}</code>
+                  </div>
                 </div>
-                <p className="step-desc">{node.description}</p>
-                <div className="step-footer">
-                  <small className="step-payload-label">PAYLOAD:</small>
-                  <code>{node.payload}</code>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Node Inspector Drawer */}
-      <div className="inspector-panel">
-        <div className="inspector-head">
-          <div className="inspector-title">
-            <span>{selectedNode.icon}</span>
+      {/* Selected Node Inspector Drawer */}
+      <div className="wf-inspector-box">
+        <div className="wf-inspector-header">
+          <div className="wf-inspector-title">
+            <span className="wf-inspector-icon">{selectedNode.icon}</span>
             <div>
               <h4>{selectedNode.title}</h4>
-              <small>{selectedNode.category} • Step {selectedNode.stepNumber}</small>
+              <small>
+                {selectedNode.stageName} • STEP {selectedNode.stepNumber}
+              </small>
             </div>
           </div>
-          <span className="inspector-status-badge">
+          <div className="wf-inspector-badge">
             STATUS: <strong>{selectedNode.status}</strong>
-          </span>
+          </div>
         </div>
 
-        <p className="inspector-desc">{selectedNode.description}</p>
+        <p className="wf-inspector-desc">{selectedNode.description}</p>
 
-        <div className="inspector-grid">
-          <div className="inspector-card">
-            <h5>Runtime Parameters</h5>
-            <div className="params-list">
+        <div className="wf-inspector-grid">
+          <div className="wf-inspector-card">
+            <div className="wf-card-title">RUNTIME PARAMETERS</div>
+            <div className="wf-params-list">
               {selectedNode.details.map((detail) => (
-                <div key={detail.label} className="param-row">
-                  <span className="param-name">{detail.label}</span>
-                  <span className="param-val">{detail.value}</span>
+                <div key={detail.label} className="wf-param-row">
+                  <span className="wf-param-label">{detail.label}</span>
+                  <span className="wf-param-value">{detail.value}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="inspector-card">
-            <h5>Algorithm & Formula</h5>
-            <div className="formula-box">
+          <div className="wf-inspector-card">
+            <div className="wf-card-title">QUANTITATIVE FORMULA &amp; LOGIC</div>
+            <div className="wf-formula-box">
               <code>{selectedNode.formula || "Deterministic event loop execution"}</code>
             </div>
-            <div className="safety-alert">
-              <strong>🛡️ Security & Protection Guard:</strong>
+            <div className="wf-safety-box">
+              <strong>🛡️ SECURITY &amp; CAPITAL PROTECTION GUARD:</strong>
               <p>{selectedNode.safetyCheck}</p>
             </div>
           </div>

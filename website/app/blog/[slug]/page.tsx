@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBlogPostBySlug } from "../../../lib/blog-data";
-import { OFFICIAL_SITE_URL } from "../../../lib/product";
+import { GITHUB_URL, OFFICIAL_SITE_URL } from "../../../lib/product";
 
 interface PageProps {
   params: {
@@ -87,7 +87,7 @@ export default function BlogPostDetailPage({ params }: PageProps) {
   };
 
   return (
-    <div style={{ background: "#05070a", color: "#f3f4f6", minHeight: "100vh", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+    <div style={{ background: "var(--paper, #f2f0e9)", color: "var(--black, #0b0d0c)", minHeight: "100vh" }}>
       {/* Schema.org Structured Data */}
       <script
         type="application/ld+json"
@@ -98,99 +98,254 @@ export default function BlogPostDetailPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
-      {/* Header Nav */}
-      <nav style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "16px 24px", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 50, background: "rgba(5,7,10,0.85)" }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Link href="/" style={{ color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: "1.25rem", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 28, height: 28, background: "#10b981", color: "#000", borderRadius: 6, display: "grid", placeItems: "center", fontWeight: 900, fontSize: "0.9rem" }}>N</span>
-            NEXUS TRADER
-          </Link>
-          <div style={{ display: "flex", gap: 16, alignItems: "center", fontSize: "0.9rem" }}>
-            <Link href="/blog" style={{ color: "#10b981", textDecoration: "none", fontWeight: 600 }}>← All Posts</Link>
-            <Link href="/#pricing" style={{ background: "#10b981", color: "#000", padding: "8px 16px", borderRadius: 6, fontWeight: 700, textDecoration: "none" }}>Get Licence ↗</Link>
-          </div>
+      {/* Master Nav */}
+      <nav className="nav wrap">
+        <Link className="wordmark" href="/">
+          <span>N</span>NEXUS TRADER
+        </Link>
+        <div className="nav-center">
+          <Link href="/#platform">Platform</Link>
+          <Link href="/#system">System</Link>
+          <Link href="/#workflow">Workflow</Link>
+          <Link href="/#research">Research</Link>
+          <Link href="/#pricing">Pricing</Link>
+          <Link href="/blog" style={{ color: "#000", fontWeight: 800 }}>Blog</Link>
+          <Link href="/admin">Admin Console</Link>
+          <Link href="/#safety">Safety</Link>
         </div>
+        <Link className="mini-cta" href="/#pricing">Get licence ↗</Link>
       </nav>
 
-      {/* Article Header */}
-      <header style={{ padding: "48px 24px 32px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "radial-gradient(circle at 50% 0%, rgba(16,185,129,0.06), transparent 70%)" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto" }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
-            <span style={{ background: "rgba(16,185,129,0.15)", color: "#10b981", padding: "4px 10px", borderRadius: 4, fontSize: "0.8rem", fontWeight: 700 }}>
-              {post.category}
-            </span>
-            <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>{post.readTimeMinutes} min read</span>
-            <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>• Published {new Date(post.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-          </div>
+      {/* Breadcrumbs & Header */}
+      <header className="wrap" style={{ paddingTop: 48, paddingBottom: 32, maxWidth: 920 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: "#727771", marginBottom: 20 }}>
+          <Link href="/" style={{ color: "#111", fontWeight: 700 }}>Home</Link>
+          <span>/</span>
+          <Link href="/blog" style={{ color: "#111", fontWeight: 700 }}>Blog</Link>
+          <span>/</span>
+          <span style={{ color: "#727771", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</span>
+        </div>
 
-          <h1 style={{ fontSize: "2.5rem", fontWeight: 900, lineHeight: 1.25, letterSpacing: "-0.02em", color: "#fff", marginBottom: 20 }}>
-            {post.title}
-          </h1>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span
+            style={{
+              background: "var(--lime, #a8ff3e)",
+              color: "#0b0d0c",
+              border: "1px solid #111",
+              padding: "4px 8px",
+              fontSize: 9,
+              fontWeight: 900,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            {post.category}
+          </span>
+          <span style={{ color: "#727771", fontSize: 11, fontWeight: 700 }}>
+            {post.readTimeMinutes} min read
+          </span>
+          <span style={{ color: "#727771", fontSize: 11 }}>
+            • Published {new Date(post.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </span>
+        </div>
 
-          <p style={{ color: "#9ca3af", fontSize: "1.15rem", lineHeight: 1.6, marginBottom: 28 }}>
-            {post.description}
-          </p>
+        <h1 style={{ fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 20px" }}>
+          {post.title}
+        </h1>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 20 }}>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#10b981", display: "grid", placeItems: "center", fontWeight: 900, color: "#000" }}>N</div>
-            <div>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>{post.author.name}</div>
-              <div style={{ color: "#6b7280", fontSize: "0.8rem" }}>{post.author.role}</div>
-            </div>
+        <p style={{ color: "#626762", fontSize: 16, lineHeight: 1.65, margin: "0 0 24px" }}>
+          {post.description}
+        </p>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, borderTop: "1px solid #d2d0c8", paddingTop: 16 }}>
+          <div style={{ width: 34, height: 34, background: "#0b0d0c", color: "var(--lime)", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 13 }}>N</div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 12, color: "#111" }}>{post.author.name}</div>
+            <div style={{ color: "#727771", fontSize: 10 }}>{post.author.role}</div>
           </div>
         </div>
       </header>
 
-      {/* Article Content */}
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: "40px 24px 64px" }}>
-        <div
+      {/* Main Article Container */}
+      <main className="wrap" style={{ paddingBottom: 80, maxWidth: 920 }}>
+        <article
           style={{
+            background: "#ffffff",
+            border: "1px solid #111111",
+            boxShadow: "14px 14px 0 #d9d7cf",
+            padding: "clamp(24px, 5vw, 56px)",
             lineHeight: 1.8,
             fontSize: "1.05rem",
-            color: "#d1d5db",
+            color: "#222222",
           }}
         >
           {post.content.split("\n\n").map((paragraph, idx) => {
-            if (paragraph.startsWith("# ")) {
-              return null; // Skip main title as rendered in header
+            const trimmed = paragraph.trim();
+            if (!trimmed || trimmed.startsWith("# ")) {
+              return null; // Skip main title
             }
-            if (paragraph.startsWith("## ")) {
-              return <h2 key={idx} style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "40px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 8 }}>{paragraph.replace("## ", "")}</h2>;
+            if (trimmed.startsWith("## ")) {
+              return (
+                <h2
+                  key={idx}
+                  style={{
+                    fontSize: "1.65rem",
+                    fontWeight: 900,
+                    margin: "44px 0 16px",
+                    lineHeight: 1.25,
+                    letterSpacing: "-0.02em",
+                    borderBottom: "1px solid #111",
+                    paddingBottom: 8,
+                    color: "#0b0d0c",
+                  }}
+                >
+                  {trimmed.replace("## ", "")}
+                </h2>
+              );
             }
-            if (paragraph.startsWith("### ")) {
-              return <h3 key={idx} style={{ fontSize: "1.35rem", fontWeight: 700, color: "#10b981", margin: "28px 0 12px" }}>{paragraph.replace("### ", "")}</h3>;
+            if (trimmed.startsWith("### ")) {
+              return (
+                <h3
+                  key={idx}
+                  style={{
+                    fontSize: "1.25rem",
+                    fontWeight: 800,
+                    margin: "28px 0 12px",
+                    color: "#0b0d0c",
+                  }}
+                >
+                  {trimmed.replace("### ", "")}
+                </h3>
+              );
             }
-            if (paragraph.startsWith("---")) {
-              return <hr key={idx} style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "32px 0" }} />;
+            if (trimmed.startsWith("> ")) {
+              return (
+                <blockquote
+                  key={idx}
+                  style={{
+                    margin: "24px 0",
+                    padding: "16px 20px",
+                    background: "#f4f3ec",
+                    borderLeft: "4px solid var(--lime)",
+                    fontSize: "0.95rem",
+                    lineHeight: 1.65,
+                    color: "#333",
+                  }}
+                >
+                  {trimmed.replace(/^>\s*/gm, "")}
+                </blockquote>
+              );
             }
-            return <p key={idx} style={{ marginBottom: 20 }}>{paragraph}</p>;
+            if (trimmed.startsWith("---")) {
+              return <hr key={idx} style={{ border: "none", borderTop: "1px solid #d2d0c8", margin: "36px 0" }} />;
+            }
+            if (trimmed.startsWith("```")) {
+              return (
+                <pre
+                  key={idx}
+                  style={{
+                    background: "#121513",
+                    color: "var(--lime)",
+                    border: "1px solid #111",
+                    padding: "18px 20px",
+                    fontFamily: "monospace",
+                    fontSize: "0.85rem",
+                    overflowX: "auto",
+                    margin: "24px 0",
+                  }}
+                >
+                  <code>{trimmed.replace(/```[a-z]*\n?/g, "")}</code>
+                </pre>
+              );
+            }
+            return (
+              <p key={idx} style={{ marginBottom: 20 }}>
+                {trimmed}
+              </p>
+            );
           })}
-        </div>
 
-        {/* Tags */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "40px 0", paddingTop: 24, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-          {post.tags.map((tag) => (
-            <span key={tag} style={{ background: "rgba(255,255,255,0.04)", color: "#9ca3af", border: "1px solid rgba(255,255,255,0.08)", padding: "4px 12px", borderRadius: 20, fontSize: "0.8rem" }}>
-              #{tag}
+          {/* Tags */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "40px 0 0", paddingTop: 24, borderTop: "1px solid #d2d0c8" }}>
+            {post.tags.map((tag) => (
+              <span
+                key={tag}
+                style={{
+                  background: "#f2f0e9",
+                  color: "#0b0d0c",
+                  border: "1px solid #111",
+                  padding: "4px 10px",
+                  fontSize: 10,
+                  fontWeight: 800,
+                }}
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        </article>
+
+        {/* Bottom CTA Box matching Landing Page .install style */}
+        <section
+          style={{
+            background: "var(--lime, #a8ff3e)",
+            border: "1px solid #111",
+            boxShadow: "14px 14px 0 #0b0d0c",
+            padding: "40px 36px",
+            display: "grid",
+            gridTemplateColumns: "1fr 240px",
+            gap: 28,
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.15em", textTransform: "uppercase" }}>
+              AUTOMATED FUTURES EXECUTION
             </span>
-          ))}
-        </div>
-
-        {/* Bottom CTA Box */}
-        <section style={{ padding: 32, borderRadius: 12, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", textAlign: "center" }}>
-          <h3 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#fff", marginBottom: 10 }}>Automate Your Futures Trading Today</h3>
-          <p style={{ color: "#9ca3af", fontSize: "0.95rem", marginBottom: 20 }}>
-            Get 30-day instant access to Nexus Trader Browser Extension with 0.25% equity risk controls and Gemini 3.7 news research.
-          </p>
-          <Link href="/#pricing" style={{ display: "inline-block", background: "#10b981", color: "#000", padding: "12px 24px", borderRadius: 6, fontWeight: 800, textDecoration: "none", fontSize: "0.95rem" }}>
-            Get Licence Key ($30) ↗
-          </Link>
+            <h3 style={{ fontSize: "clamp(24px, 3.5vw, 36px)", fontWeight: 900, margin: "6px 0 10px", lineHeight: 1.1 }}>
+              Start With 0.25% Equity Risk Controls.
+            </h3>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#222" }}>
+              Nexus Trader browser extension combines deterministic mathematical indicators with search-grounded Gemini 3.7 news research.
+            </p>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <Link
+              href="/#pricing"
+              className="solid"
+              style={{
+                display: "inline-block",
+                background: "#0b0d0c",
+                color: "#fff",
+                padding: "14px 24px",
+                fontWeight: 900,
+                fontSize: 11,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Get Licence ($30) ↗
+            </Link>
+          </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.08)", padding: "32px 24px", textAlign: "center", color: "#6b7280", fontSize: "0.85rem" }}>
-        <p>© 2026 NEXUS TRADER. Trading involves risk. No strategy guarantees profit.</p>
+      {/* Master Footer */}
+      <footer className="wrap">
+        <div className="wordmark">
+          <span>N</span>NEXUS TRADER
+        </div>
+        <p>Trading involves substantial risk. No strategy guarantees profit.</p>
+        <div className="footer-links">
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="Nexus Trader on GitHub">
+            GitHub ↗
+          </a>
+          <Link href="/blog">Blog</Link>
+          <Link href="/admin">Admin Console</Link>
+          <Link href="/#install">Extension</Link>
+          <Link href="/#safety">Safety</Link>
+          <small>© 2026 / NEXUS SYSTEMS</small>
+        </div>
       </footer>
     </div>
   );

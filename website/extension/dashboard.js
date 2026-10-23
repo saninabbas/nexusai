@@ -676,11 +676,11 @@ function selectWorkflowNode(nodeId) {
   const node = WORKFLOW_NODES[nodeId];
   if (!node) return;
 
-  document.querySelectorAll(".workflow-node-card").forEach((card) => {
+  document.querySelectorAll(".wf-node-box").forEach((card) => {
     card.classList.toggle("selected", card.dataset.nodeId === nodeId);
   });
-  document.querySelectorAll(".step-card").forEach((card) => {
-    card.classList.toggle("active-step", card.dataset.nodeId === nodeId);
+  document.querySelectorAll(".wf-step-item").forEach((card) => {
+    card.classList.toggle("selected", card.dataset.nodeId === nodeId);
   });
 
   const inspIcon = document.getElementById("wf-insp-icon");
@@ -704,12 +704,12 @@ function selectWorkflowNode(nodeId) {
     inspParams.innerHTML = "";
     node.details.forEach((item) => {
       const row = document.createElement("div");
-      row.className = "param-row";
+      row.className = "wf-param-row";
       const name = document.createElement("span");
-      name.className = "param-name";
+      name.className = "wf-param-label";
       name.textContent = item.label;
       const val = document.createElement("span");
-      val.className = "param-val";
+      val.className = "wf-param-value";
       val.textContent = item.value;
       row.appendChild(name);
       row.appendChild(val);
@@ -740,14 +740,14 @@ function initWorkflow() {
     });
   }
 
-  document.querySelectorAll(".workflow-node-card").forEach((card) => {
+  document.querySelectorAll(".wf-node-box").forEach((card) => {
     card.addEventListener("click", () => {
       const id = card.dataset.nodeId;
       if (id) selectWorkflowNode(id);
     });
   });
 
-  document.querySelectorAll(".step-card").forEach((card) => {
+  document.querySelectorAll(".wf-step-item").forEach((card) => {
     card.addEventListener("click", () => {
       const id = card.dataset.nodeId;
       if (id) selectWorkflowNode(id);

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAllBlogPosts } from "../../lib/blog-data";
-import { OFFICIAL_SITE_URL } from "../../lib/product";
+import { GITHUB_URL, OFFICIAL_SITE_URL } from "../../lib/product";
 
 export const metadata: Metadata = {
   title: "Blog — AI Trading Insights & Binance Futures Strategies | Nexus Trader",
@@ -19,76 +19,113 @@ export default function BlogIndexPage() {
   const posts = getAllBlogPosts();
 
   return (
-    <div style={{ background: "#05070a", color: "#f3f4f6", minHeight: "100vh", fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      {/* Header Nav */}
-      <nav style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "16px 24px", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 50, background: "rgba(5,7,10,0.85)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Link href="/" style={{ color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: "1.25rem", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 28, height: 28, background: "#10b981", color: "#000", borderRadius: 6, display: "grid", placeItems: "center", fontWeight: 900, fontSize: "0.9rem" }}>N</span>
-            NEXUS TRADER <span style={{ fontSize: "0.75rem", color: "#10b981", background: "rgba(16,185,129,0.15)", padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(16,185,129,0.3)" }}>BLOG</span>
-          </Link>
-          <div style={{ display: "flex", gap: 20, alignItems: "center", fontSize: "0.9rem" }}>
-            <Link href="/" style={{ color: "#9ca3af", textDecoration: "none" }}>Platform</Link>
-            <Link href="/blog" style={{ color: "#10b981", textDecoration: "none", fontWeight: 600 }}>Blog</Link>
-            <Link href="/#pricing" style={{ background: "#10b981", color: "#000", padding: "8px 16px", borderRadius: 6, fontWeight: 700, textDecoration: "none" }}>Get Licence ↗</Link>
-          </div>
+    <div style={{ background: "var(--paper, #f2f0e9)", color: "var(--black, #0b0d0c)", minHeight: "100vh" }}>
+      {/* Master Brand Nav */}
+      <nav className="nav wrap">
+        <Link className="wordmark" href="/">
+          <span>N</span>NEXUS TRADER
+        </Link>
+        <div className="nav-center">
+          <Link href="/#platform">Platform</Link>
+          <Link href="/#system">System</Link>
+          <Link href="/#workflow">Workflow</Link>
+          <Link href="/#research">Research</Link>
+          <Link href="/#pricing">Pricing</Link>
+          <Link href="/blog" style={{ color: "#000", fontWeight: 800 }}>Blog</Link>
+          <Link href="/admin">Admin Console</Link>
+          <Link href="/#safety">Safety</Link>
         </div>
+        <Link className="mini-cta" href="/#pricing">Get licence ↗</Link>
       </nav>
 
-      {/* Hero Section */}
-      <header style={{ padding: "60px 24px 40px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "radial-gradient(circle at 50% 0%, rgba(16,185,129,0.08), transparent 70%)" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto" }}>
-          <span style={{ color: "#10b981", fontSize: "0.85rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>QUANTITATIVE RESEARCH & TUTORIALS</span>
-          <h1 style={{ fontSize: "2.75rem", fontWeight: 900, margin: "16px 0", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-            Master Automated Futures Trading & <span style={{ color: "#10b981" }}>AI Risk Gates</span>
-          </h1>
-          <p style={{ color: "#9ca3af", fontSize: "1.1rem", lineHeight: 1.6 }}>
-            In-depth guides on Binance Futures automation, Freqtrade confluence indicators, Gemini 3.7 news research, and 0.25% equity risk sizing.
-          </p>
+      {/* Header Banner */}
+      <header className="wrap" style={{ paddingTop: 64, paddingBottom: 48 }}>
+        <div className="overline">
+          <span /> QUANTITATIVE RESEARCH &amp; EDITORIAL
         </div>
+        <h1 style={{ margin: "20px 0 24px", fontSize: "clamp(48px, 6vw, 84px)", lineHeight: 0.9, letterSpacing: "-0.06em" }}>
+          Engineering &amp;<br />
+          <i>Market Research.</i>
+        </h1>
+        <p style={{ maxWidth: 640, fontSize: 16, lineHeight: 1.7, color: "#626762", margin: 0 }}>
+          Practical technical guides on Binance Futures automation, 0.25% equity risk models, completed-candle strategy filters, and Gemini 3.7 Flash search grounding.
+        </p>
       </header>
 
-      {/* Main Grid */}
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 28 }}>
+      {/* Main Articles Grid */}
+      <main className="wrap" style={{ paddingBottom: 96 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: 24 }}>
           {posts.map((post) => (
             <article
               key={post.slug}
               style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 12,
-                padding: 24,
+                background: "#ffffff",
+                border: "1px solid #111111",
+                boxShadow: "10px 10px 0 #d9d7cf",
+                padding: 32,
                 display: "flex",
                 flexDirection: "column",
-                justify: "space-between",
-                transition: "all 0.2s ease",
+                justifyContent: "space-between",
               }}
             >
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <span style={{ background: "rgba(16,185,129,0.12)", color: "#10b981", padding: "4px 10px", borderRadius: 4, fontSize: "0.75rem", fontWeight: 700 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <span
+                    style={{
+                      background: "var(--lime, #a8ff3e)",
+                      color: "#0b0d0c",
+                      border: "1px solid #111",
+                      padding: "4px 8px",
+                      fontSize: 9,
+                      fontWeight: 900,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                    }}
+                  >
                     {post.category}
                   </span>
-                  <span style={{ color: "#6b7280", fontSize: "0.8rem" }}>{post.readTimeMinutes} min read</span>
+                  <span style={{ color: "#727771", fontSize: 11, fontWeight: 700 }}>
+                    {post.readTimeMinutes} min read
+                  </span>
                 </div>
-                <h2 style={{ fontSize: "1.35rem", fontWeight: 800, margin: "10px 0 12px", lineHeight: 1.35 }}>
-                  <Link href={`/blog/${post.slug}`} style={{ color: "#fff", textDecoration: "none" }}>
+
+                <h2 style={{ fontSize: 20, fontWeight: 800, margin: "14px 0 10px", lineHeight: 1.35, color: "#0b0d0c" }}>
+                  <Link href={`/blog/${post.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
                     {post.title}
                   </Link>
                 </h2>
-                <p style={{ color: "#9ca3af", fontSize: "0.95rem", lineHeight: 1.55, marginBottom: 20 }}>
+
+                <p style={{ color: "#626762", fontSize: 13, lineHeight: 1.65, marginBottom: 24 }}>
                   {post.description}
                 </p>
               </div>
 
-              <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>
-                  By <strong style={{ color: "#d1d5db" }}>{post.author.name}</strong> • {new Date(post.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              <div
+                style={{
+                  borderTop: "1px solid #d2d0c8",
+                  paddingTop: 16,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: 11,
+                }}
+              >
+                <div style={{ color: "#727771" }}>
+                  By <strong style={{ color: "#111" }}>{post.author.name}</strong> •{" "}
+                  {new Date(post.publishedAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
                 </div>
                 <Link
                   href={`/blog/${post.slug}`}
-                  style={{ color: "#10b981", fontWeight: 700, fontSize: "0.85rem", textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}
+                  style={{
+                    color: "#0b0d0c",
+                    fontWeight: 900,
+                    textDecoration: "none",
+                    borderBottom: "1px solid #0b0d0c",
+                  }}
                 >
                   Read Article ↗
                 </Link>
@@ -97,21 +134,68 @@ export default function BlogIndexPage() {
           ))}
         </div>
 
-        {/* CTA Banner */}
-        <section style={{ marginTop: 64, padding: 40, borderRadius: 16, background: "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,7,10,0.95))", border: "1px solid rgba(16,185,129,0.3)", textAlign: "center" }}>
-          <h2 style={{ fontSize: "2rem", fontWeight: 900, marginBottom: 12 }}>Ready to Command Your Trading Operations?</h2>
-          <p style={{ color: "#9ca3af", maxWidth: 600, margin: "0 auto 24px", fontSize: "1.05rem" }}>
-            Experience 100% browser-native Binance Futures controls with automated multi-pair scanning and 0.25% equity risk guardrails.
-          </p>
-          <Link href="/#pricing" style={{ display: "inline-block", background: "#10b981", color: "#000", padding: "14px 28px", borderRadius: 8, fontWeight: 800, textDecoration: "none", fontSize: "1rem", letterSpacing: "0.02em" }}>
-            💳 Get PRO Licence Key ($30) ↗
-          </Link>
+        {/* Bottom CTA Box matching Landing Page .install style */}
+        <section
+          style={{
+            marginTop: 72,
+            background: "var(--lime, #a8ff3e)",
+            border: "1px solid #111",
+            boxShadow: "14px 14px 0 #0b0d0c",
+            padding: "48px 40px",
+            display: "grid",
+            gridTemplateColumns: "1fr 280px",
+            gap: 32,
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.15em", textTransform: "uppercase" }}>
+              NEXUS PRO LICENSING
+            </span>
+            <h3 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 900, margin: "8px 0 12px", lineHeight: 1.05 }}>
+              Command Your Trading Operations.
+            </h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#222" }}>
+              Automate multi-pair scanning with hard 0.25% equity risk controls, exchange-native brackets, and Gemini 3.7 search grounding.
+            </p>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <Link
+              href="/#pricing"
+              className="solid"
+              style={{
+                display: "inline-block",
+                background: "#0b0d0c",
+                color: "#fff",
+                padding: "16px 28px",
+                fontWeight: 900,
+                fontSize: 12,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Get Licence ($30) ↗
+            </Link>
+          </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.08)", padding: "32px 24px", textAlign: "center", color: "#6b7280", fontSize: "0.85rem" }}>
-        <p>© 2026 NEXUS TRADER. Trading involves risk. No strategy guarantees profit.</p>
+      {/* Master Footer */}
+      <footer className="wrap">
+        <div className="wordmark">
+          <span>N</span>NEXUS TRADER
+        </div>
+        <p>Trading involves substantial risk. No strategy guarantees profit.</p>
+        <div className="footer-links">
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="Nexus Trader on GitHub">
+            GitHub ↗
+          </a>
+          <Link href="/blog">Blog</Link>
+          <Link href="/admin">Admin Console</Link>
+          <Link href="/#install">Extension</Link>
+          <Link href="/#safety">Safety</Link>
+          <small>© 2026 / NEXUS SYSTEMS</small>
+        </div>
       </footer>
     </div>
   );
