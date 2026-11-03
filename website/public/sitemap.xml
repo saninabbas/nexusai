@@ -2,15 +2,39 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://nexusbotai.pro/</loc>
-    <lastmod>2026-10-29</lastmod>
+    <lastmod>2026-11-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://nexusbotai.pro/blog</loc>
-    <lastmod>2026-10-29</lastmod>
+    <lastmod>2026-11-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://nexusbotai.pro/blog/trailing-stop-loss-mechanics-crypto-futures-bots-2026</loc>
+    <lastmod>2026-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://nexusbotai.pro/blog/binance-api-rate-limits-weight-management-trading-bots-2026</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://nexusbotai.pro/blog/overcoming-emotional-burnout-crypto-trading-automation-2026</loc>
+    <lastmod>2026-11-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://nexusbotai.pro/blog/walk-forward-optimization-quantitative-crypto-strategies-2026</loc>
+    <lastmod>2026-10-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
   </url>
   <url>
     <loc>https://nexusbotai.pro/blog/binance-futures-maintenance-margin-liquidation-calculation-2026</loc>
